@@ -3114,6 +3114,7 @@ class SimulationEngine:
                         self._infrastructure_state
                     ),
                     earthquake_state=earthquake_state,
+                    time_step_seconds=delta_time,
                 )
             )
 

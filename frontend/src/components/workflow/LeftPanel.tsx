@@ -5,16 +5,32 @@ import { ZoneConfiguration } from './ZoneConfiguration';
 import './LeftPanel.css';
 
 export const LeftPanel: React.FC = () => {
-  const { workflowState, selectedZoneId, environment } = useStore();
+  const { workflowState, selectedZoneId, environment, finalEnvironment } = useStore();
+  const displayEnv = workflowState === 'disaster-finished' ? finalEnvironment : environment;
 
   const eqState = environment?.earthquake_state;
   const casualties = environment?.subsystems?.casualties;
-
+  const activeCalamity = useStore(state => state.activeCalamity);
+  const duration = useStore(state => state.duration);
+  const currentTick = useStore(state => state.currentTick);
+  
   // Left Panel is only visible if a zone is selected OR a disaster is active/finished
   if (workflowState === 'idle') {
     return null;
   }
-
+  // 1 simulated day = 24 ticks (assuming 1 tick = 1 hour = 3600 seconds)
+  // For display purposes, we can calculate days remaining.
+  let remainingTimeDisplay = 'NO DATA';
+  if (activeCalamity?.type === 'FLOOD' && duration !== undefined) {
+      // currentTick is number of hours. duration is in seconds.
+      // Total hours = duration / 3600
+      const totalTicks = Math.floor(duration / 3600);
+      const ticksRemaining = Math.max(0, totalTicks - currentTick);
+      const daysRemaining = Math.ceil(ticksRemaining / 24);
+      
+      remainingTimeDisplay = `${daysRemaining} Day${daysRemaining !== 1 ? 's' : ''}`;
+  }
+  
   return (
     <div className="left-panel">
       <div className="panel-content">
@@ -41,16 +57,20 @@ export const LeftPanel: React.FC = () => {
               </div>
               <div className="stat-row">
                 <span className="stat-label">TIME REMAINING</span>
-                <span className="stat-value">NO DATA</span>
+                <span className="stat-value">{remainingTimeDisplay}</span>
               </div>
-              <div className="stat-row">
-                <span className="stat-label">CASUALTIES</span>
-                <span className="stat-value">NO DATA</span>
-              </div>
-              <div className="stat-row">
-                <span className="stat-label">PROPERTY DAMAGE</span>
-                <span className="stat-value">NO DATA</span>
-              </div>
+              {activeCalamity?.type !== 'FLOOD' && (
+                  <>
+                      <div className="stat-row">
+                        <span className="stat-label">CASUALTIES</span>
+                        <span className="stat-value">NO DATA</span>
+                      </div>
+                      <div className="stat-row">
+                        <span className="stat-label">PROPERTY DAMAGE</span>
+                        <span className="stat-value">NO DATA</span>
+                      </div>
+                  </>
+              )}
             </div>
             <p className="backend-pending">Waiting for authoritative backend simulation data...</p>
           </div>
@@ -111,11 +131,15 @@ export const LeftPanel: React.FC = () => {
             <h3>INTERVENTION IMPACT</h3>
             <div className="impact-section">
               <h4>APPLIED MEASURES</h4>
-              <p className="no-data">NO DATA</p>
-            </div>
-            <div className="impact-section">
-              <h4>REDUCED EXPOSURE</h4>
-              <p className="no-data">NO DATA</p>
+              {displayEnv?.decision?.active_interventions && displayEnv.decision.active_interventions.length > 0 ? (
+                <ul className="applied-measures-list">
+                  {displayEnv.decision.active_interventions.map((measure: any) => (
+                    <li key={measure.intervention_id}>{measure.name || measure.intervention_id.replace(/_/g, ' ').toUpperCase()}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="no-data">None</p>
+              )}
             </div>
           </div>
         )}

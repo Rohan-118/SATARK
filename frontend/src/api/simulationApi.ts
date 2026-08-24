@@ -41,39 +41,10 @@ export const initializeSimulation = async (payload: SimulationInitPayload): Prom
 };
 
 export const stepSimulation = async (): Promise<WorldSnapshot> => {
-  console.log('[STEP REQUEST] POST /api/simulation/step/');
   const data = await apiClient.post('/simulation/step/');
   
-  const rawEnv = (data?.environment || {}) as any;
-  const rawLevels = rawEnv?.flood_water_levels || {};
-  const rawEntries = Object.entries(rawLevels);
-  const rawGtZero = rawEntries.filter((e: any) => e[1] > 0).length;
-  const rawMax = rawEntries.length > 0 ? Math.max(...rawEntries.map((e: any) => e[1] as number)) : 0;
-  
-  console.log(`[STEP RAW RESPONSE]
-tick=${data?.currentTick}
-simulationTime=${data?.simulationTime}
-activeCalamity=${data?.activeCalamity}
-rainfall=${rawEnv?.rainfall_intensity}
-floodedZones=${rawGtZero}
-maxWater=${rawMax}`);
-
   const snapshot = normalizeWorldSnapshot(data);
   
-  const normEnv = (snapshot?.environment || {}) as any;
-  const normLevels = normEnv?.flood_water_levels || {};
-  const normEntries = Object.entries(normLevels);
-  const normGtZero = normEntries.filter((e: any) => e[1] > 0).length;
-  const normMax = normEntries.length > 0 ? Math.max(...normEntries.map((e: any) => e[1] as number)) : 0;
-
-  console.log(`[STEP NORMALIZED RESPONSE]
-tick=${snapshot?.simulation?.tick}
-simulationTime=${snapshot?.simulation?.timestamp}
-activeCalamity=${snapshot?.activeCalamity?.type}
-rainfall=${normEnv?.rainfall_intensity}
-floodedZones=${normGtZero}
-maxWater=${normMax}`);
-
   if (!snapshot) {
     throw new Error('Received invalid world snapshot from backend');
   }

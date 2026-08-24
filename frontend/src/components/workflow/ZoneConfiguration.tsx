@@ -60,7 +60,7 @@ export const ZoneConfiguration: React.FC = () => {
 
       const payload = {
         duration: payloadDuration,
-        tick_rate: 1.0 / 60.0, // 1 tick = 60 simulation seconds
+        tick_rate: disasterType === 'FLOOD' ? 1.0 / 3600.0 : 1.0 / 60.0, // FLOOD: 1 tick = 1 hour, EARTHQUAKE: 1 tick = 60s
         calamity_type: disasterType,
         parameters: {
           zone_mapping_path: "data/glb_zone_mapping.json",

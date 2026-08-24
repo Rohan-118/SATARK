@@ -15,7 +15,7 @@ class CasualtiesEngine:
             if node['type'] == 'medical'
         }
 
-    def update_casualties(self, current_populations, flood_states, bottlenecks, panic_states, infra_states, earthquake_state=None):
+    def update_casualties(self, current_populations, flood_states, bottlenecks, panic_states, infra_states, earthquake_state=None, time_step_seconds=3600.0):
         """
         Calculates new injuries and fatalities for this simulation tick.
         
@@ -53,41 +53,53 @@ class CasualtiesEngine:
             bottleneck = bottlenecks.get(zone_id, 0.0)
             panic = panic_states.get(zone_id, 0.0)
             
+            already_fatalities = self.zone_casualties[zone_id]['fatalities']
+            already_injuries = self.zone_casualties[zone_id]['injuries']
+            
+            # Prevent people from being injured or killed multiple times
+            healthy_exposed = max(0, people_exposed - already_injuries - already_fatalities)
+            
+            if healthy_exposed <= 0:
+                continue
+
+            # Scale hourly rates by elapsed time
+            time_step_hours = time_step_seconds / 3600.0
+
             # --- Vector A: Environmental Casualties (Flood) ---
-            # Water above 0.3 starts causing injuries (debris, slipping). 
-            # Water above 0.7 causes severe drowning risks.
-            env_injury_rate = (water_level ** 2) * 0.02 
-            env_fatality_rate = (water_level ** 3) * 0.005 if water_level > 0.5 else 0.0
+            env_injury_rate = ((water_level ** 2) * 0.02) * time_step_hours
+            env_fatality_rate = ((water_level ** 3) * 0.005 if water_level > 0.5 else 0.0) * time_step_hours
             
             # --- Vector B: Crowd Dynamics Casualties (Crush/Stampede) ---
-            # Crush injuries only happen if a bottleneck is severe (>1.2) AND people are panicked
             crush_injury_rate = 0.0
             crush_fatality_rate = 0.0
             if bottleneck > 1.2 and panic > 0.5:
-                # Severity scales with how far over capacity the road is
                 over_capacity = bottleneck - 1.0
-                crush_injury_rate = (over_capacity * panic) * 0.03
-                crush_fatality_rate = (over_capacity * panic) * 0.002
+                crush_injury_rate = ((over_capacity * panic) * 0.03) * time_step_hours
+                crush_fatality_rate = ((over_capacity * panic) * 0.002) * time_step_hours
 
             # --- Vector C: Structural Collapse (Earthquake) ---
+            # Earthquakes are instantaneous, no time scaling applied
             eq_injury_rate = 0.0
             eq_fatality_rate = 0.0
             if earthquake_state and zone_id in earthquake_state.get("damage", {}).get("zone_damage", {}):
                 collapse = earthquake_state["damage"]["zone_damage"][zone_id].get("collapse_ratio", 0.0)
-                # 10% fatality and 30% injury rate of the exposed population for a total collapse
                 eq_fatality_rate = collapse * 0.10
                 eq_injury_rate = collapse * 0.30
 
-            # Calculate raw numbers for this hour
-            raw_injuries = int(people_exposed * (env_injury_rate + crush_injury_rate + eq_injury_rate))
-            raw_fatalities = int(people_exposed * (env_fatality_rate + crush_fatality_rate + eq_fatality_rate))
+            raw_injuries = int(healthy_exposed * (env_injury_rate + crush_injury_rate + eq_injury_rate))
+            raw_fatalities = int(healthy_exposed * (env_fatality_rate + crush_fatality_rate + eq_fatality_rate))
+            
+            # Cap total new casualties to healthy_exposed
+            total_new_casualties = raw_injuries + raw_fatalities
+            if total_new_casualties > healthy_exposed:
+                scale = healthy_exposed / total_new_casualties
+                raw_injuries = int(raw_injuries * scale)
+                raw_fatalities = int(raw_fatalities * scale)
             
             # --- Vector D: Medical System Collapse ---
-            # If the hospitals have failed, a percentage of the new injuries become fatalities
             triage_failure_rate = 1.0 - avg_medical_health
             fatalities_from_untreated_injuries = int(raw_injuries * (triage_failure_rate * 0.15))
             
-            # Adjust final tallies
             final_injuries = raw_injuries - fatalities_from_untreated_injuries
             final_fatalities = raw_fatalities + fatalities_from_untreated_injuries
             
