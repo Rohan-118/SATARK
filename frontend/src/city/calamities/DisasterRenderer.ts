@@ -1,19 +1,22 @@
-import * as THREE from 'three';
 import { Calamity, FloodEnvironment } from '../../types/domain';
 import { FloodRenderer } from './flood/FloodRenderer';
 import { EarthquakeRenderer } from './earthquake/EarthquakeRenderer';
 import { ZoneRenderer } from '../zones/ZoneRenderer';
 
+import { CityRenderer } from '../CityRenderer';
+
 export class DisasterRenderer {
   private floodRenderer: FloodRenderer;
   private earthquakeRenderer: EarthquakeRenderer;
 
-  constructor(scene: THREE.Scene, zoneRenderer: ZoneRenderer) {
-    this.floodRenderer = new FloodRenderer(scene, zoneRenderer);
-    this.earthquakeRenderer = new EarthquakeRenderer(scene);
+  constructor(renderer: CityRenderer, zoneRenderer: ZoneRenderer) {
+    this.floodRenderer = new FloodRenderer(renderer, zoneRenderer);
+    this.earthquakeRenderer = new EarthquakeRenderer(renderer.getScene());
   }
 
   public updateCalamity(calamity: Calamity | null, environment?: FloodEnvironment) {
+    console.log('[TRACE 5] DisasterRenderer activeCalamity:', calamity);
+    console.log('[TRACE 5] DisasterRenderer flood_water_levels:', environment?.flood_water_levels);
     if (!calamity) {
       this.floodRenderer.clear();
       this.earthquakeRenderer.clear();

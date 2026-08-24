@@ -39,7 +39,7 @@ export const ZoneConfiguration: React.FC = () => {
       
       const payload = {
         duration: payloadDuration,
-        tick_rate: 1, 
+        tick_rate: 1.0 / 60.0, // 1 tick = 60 simulation seconds
         calamity_type: disasterType,
         parameters: {
           zone_mapping_path: "data/glb_zone_mapping.json",
@@ -48,6 +48,7 @@ export const ZoneConfiguration: React.FC = () => {
           shelters_path: "data/shelters.json",
           representative_agent_count: 250,
           severity: severityMap[severity] || 2,
+          rainfall_intensity: (severityMap[severity] || 2) * 20.0,
           intervention_level: 0.0,
           zone_id: selectedZoneId
         }

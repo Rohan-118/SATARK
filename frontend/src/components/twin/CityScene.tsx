@@ -83,7 +83,7 @@ export const CityScene: React.FC = () => {
       const cameraController = new CameraController(renderer);
       cameraControllerRef.current = cameraController;
 
-      const disasterRenderer = new DisasterRenderer(renderer.getScene(), zoneRenderer);
+      const disasterRenderer = new DisasterRenderer(renderer, zoneRenderer);
       disasterRendererRef.current = disasterRenderer;
 
       const infrastructureRenderer = new InfrastructureRenderer(renderer.getScene());

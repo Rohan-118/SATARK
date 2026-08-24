@@ -1096,6 +1096,12 @@ class SimulationEngine:
                     {}
                 )
             )
+            self.world.state.environment[
+                "rainfall_intensity"
+            ] = (
+                self.scenario
+                .rainfall_intensity
+            )
 
         self._flood_zone_data = {
             zone["id"]: zone
@@ -2374,6 +2380,11 @@ class SimulationEngine:
         water_levels = flood_state[
             "water_levels"
         ]
+        
+        num_flooded = len([v for v in water_levels.values() if v > 0])
+        max_level = max(water_levels.values()) if water_levels else 0.0
+        print(f"[BACKEND FLOOD STEP] delta_time={delta_time} simTimeBefore=??? simTimeAfter={self.clock.simulation_time} "
+              f"rainfall={self.scenario.rainfall_intensity} floodedZones={num_flooded} maxWater={max_level}")
 
         self.world.state.environment[
             "rainfall_intensity"
