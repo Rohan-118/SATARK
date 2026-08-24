@@ -664,6 +664,8 @@ class SimulationEngine:
         zones_path = (
             self.scenario.get_parameter(
                 "zones_path"
+            ) or self.scenario.get_parameter(
+                "zone_mapping_path"
             )
         )
 
@@ -2789,7 +2791,12 @@ class SimulationEngine:
             delta_time
         )
 
-        if (
+        is_earthquake = (
+            self.scenario.calamity_type
+            == CalamityType.EARTHQUAKE
+        )
+
+        if not is_earthquake and (
             self._panic_accumulator
             < self._population_model_step_seconds
         ):
