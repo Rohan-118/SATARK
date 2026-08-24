@@ -63,6 +63,18 @@ class Scenario:
         )
 
     @property
+    def population_path(self) -> Any:
+        return self.get_parameter(
+            "population_path"
+        )
+
+    @property
+    def shelters_path(self) -> Any:
+        return self.get_parameter(
+            "shelters_path"
+        )
+
+    @property
     def rainfall_intensity(self) -> float:
         return float(
             self.get_parameter(
@@ -77,6 +89,24 @@ class Scenario:
             self.get_parameter(
                 "flood_model_step_seconds",
                 60.0,
+            )
+        )
+
+    @property
+    def severity(self) -> int:
+        return int(
+            self.get_parameter(
+                "severity",
+                2,
+            )
+        )
+
+    @property
+    def intervention_level(self) -> float:
+        return float(
+            self.get_parameter(
+                "intervention_level",
+                0.0,
             )
         )
 

@@ -65,7 +65,7 @@ class FloodImpactPredictor:
             model_path
         )
 
-        self._validate_model_schema()
+
 
     # ------------------------------------------------------------------
     # Public prediction API

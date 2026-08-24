@@ -9,7 +9,7 @@ class EvacuationEngine:
             
         # Load shelter locations and capacities
         with open(shelters_path, 'r') as f:
-            self.shelters = {s['shelter_id']: s for s in json.load(f)['shelters']}
+            self.shelters = {s.get('shelter_id', s.get('id')): s for s in json.load(f)['shelters']}
             
     def calculate_evacuation_routes(self, flood_states, panic_states):
         """

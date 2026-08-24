@@ -1,4 +1,4 @@
-from math import floor
+from math import cos, floor, pi, sin, sqrt
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 from core.enums import AgentState
@@ -214,29 +214,55 @@ class AgentManager:
 
         for zone_id, population in normalized:
             agent_count = counts[zone_id]
-            position = self._zone_center_position(
+            center_position = self._zone_center_position(
                 zone_mapping[zone_id]
             )
-            route = self._build_zone_route(
+            base_route = self._build_zone_route(
                 zone_id,
                 zone_mapping,
             )
             cohort_size = population / agent_count
 
             for index in range(agent_count):
+                if agent_count == 1:
+                    dx, dz = 0.0, 0.0
+                else:
+                    # Deterministic golden-spiral dispersion within the zone (15-60 units radius)
+                    radius = 15.0 + 45.0 * sqrt((index + 0.5) / agent_count)
+                    angle = index * 2.399963229728653  # Golden angle (radians)
+                    dx = radius * cos(angle)
+                    dz = radius * sin(angle)
+
+                agent_position = Position(
+                    x=center_position.x + dx,
+                    y=center_position.y,
+                    z=center_position.z + dz,
+                )
+
+                # Route starts with the next waypoint and loops back to starting position
+                waypoints = base_route[1:] + [base_route[0]] if len(base_route) > 1 else base_route
+                agent_route = [
+                    Position(
+                        x=p.x + dx,
+                        y=p.y,
+                        z=p.z + dz,
+                    )
+                    for p in waypoints
+                ]
+
                 agents.append(
                     HumanAgent(
                         id=(
                             f"agent_{zone_id}_"
                             f"{index + 1:03d}"
                         ),
-                        position=position,
+                        position=agent_position,
                         state=AgentState.NORMAL,
                         speed=default_speed,
-                        start_position=position,
+                        start_position=agent_position,
                         zone_id=zone_id,
                         cohort_size=cohort_size,
-                        normal_route=route,
+                        normal_route=agent_route,
                     )
                 )
 

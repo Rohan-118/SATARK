@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from collections.abc import Mapping
 from typing import Any
 
 from rest_framework import serializers
