@@ -53,9 +53,27 @@ export function validateWorldSnapshot(raw: unknown): WorldSnapshot | null {
     };
   }
 
-  const environment = dto.environment && typeof dto.environment === 'object'
-    ? (dto.environment as unknown as FloodEnvironment) // We cast it to the correct domain type
-    : undefined;
+  const environment = (dto.environment && typeof dto.environment === 'object'
+    ? dto.environment
+    : {}) as unknown as FloodEnvironment;
+
+  // Map root risk and recommendations into environment to satisfy frontend expectations
+  if (dto.risk) {
+    environment.risk = {
+      available: true,
+      assessment: dto.risk
+    };
+  }
+  
+  if (dto.recommendations) {
+    environment.decision = environment.decision || {};
+    environment.decision.recommendations = dto.recommendations;
+  }
+
+  if (dto.subsystems) {
+    // @ts-ignore - dynamic properties
+    environment.subsystems = dto.subsystems;
+  }
 
   return {
     simulation: {

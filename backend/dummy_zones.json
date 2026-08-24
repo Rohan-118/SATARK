@@ -1,0 +1,1 @@
+{"zones": [{"id": "zone-1", "zone_id": "zone-1", "seismic_resilience": 1.0, "resident_population_estimate": 1000, "population_weight": 0.5, "lat": 1.0, "lon": 1.0, "center_world": {"x": 0.0, "y": 0.0, "z": 0.0}}]}

@@ -156,8 +156,19 @@ export const CityScene: React.FC = () => {
     };
   }, []);
 
+  const { workflowState } = useStore();
+  const [isShaking, setIsShaking] = useState(false);
+
+  useEffect(() => {
+    if (workflowState === 'earthquake-result') {
+      setIsShaking(true);
+      const timer = setTimeout(() => setIsShaking(false), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [workflowState]);
+
   return (
-    <div className="city-scene-container" ref={containerRef}>
+    <div className={`city-scene-container ${isShaking ? 'earthquake-shake' : ''}`} ref={containerRef}>
       {loading && (
         <div className="city-scene-loading">
           Loading city.glb... {progress.toFixed(0)}%

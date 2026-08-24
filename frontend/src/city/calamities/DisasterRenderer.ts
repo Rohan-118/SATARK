@@ -15,8 +15,7 @@ export class DisasterRenderer {
   }
 
   public updateCalamity(calamity: Calamity | null, environment?: FloodEnvironment) {
-    console.log('[TRACE 5] DisasterRenderer activeCalamity:', calamity);
-    console.log('[TRACE 5] DisasterRenderer flood_water_levels:', environment?.flood_water_levels);
+
     if (!calamity) {
       this.floodRenderer.clear();
       this.earthquakeRenderer.clear();

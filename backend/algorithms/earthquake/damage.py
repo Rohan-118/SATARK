@@ -109,6 +109,6 @@ class SeismicDamageEngine:
             return 0.0
         try:
             val = (math.log(x / median)) / beta
-            return 0.05 * (1.0 + math.erf(val / math.sqrt(2.0))) # Standard approximation or standard normal CDF
+            return 0.5 * (1.0 + math.erf(val / math.sqrt(2.0))) # Standard approximation or standard normal CDF
         except ValueError:
             return 0.0

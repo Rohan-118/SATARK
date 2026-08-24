@@ -162,11 +162,11 @@ export class AgentRenderer {
    * Handles additions, position updates, and removals.
    */
   public updateAgents(agents: Agent[]): void {
-    console.log('[DEBUG AGENTS] AgentRenderer.updateAgents called with:', agents.length);
+    // console.log removed
     if (this.isDisposed) return;
 
     if (!this.isLoaded) {
-      console.log('[DEBUG AGENTS] AgentRenderer not loaded yet. Queuing', agents.length, 'agents.');
+      // console.log removed
       // Store pending agents until GLB finishes loading
       this.pendingAgents = agents;
       return;

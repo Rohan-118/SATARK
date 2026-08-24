@@ -63,7 +63,7 @@ export class CityStateAdapter {
       this.unsubscribeAgents = useStore.subscribe(
         (state: StoreState) => {
           const agentsArray = Object.values(state.agents);
-          console.log('[DEBUG AGENTS] CityStateAdapter received agents update:', agentsArray.length);
+          // console.log removed
           this.agentRenderer?.updateAgents(agentsArray);
         }
       );
@@ -75,8 +75,7 @@ export class CityStateAdapter {
         (state: StoreState) => {
           // We call updateCalamity on every state change when disasterRenderer is present
           // so it can receive dynamic environment updates (like flood water levels)
-          console.log('[TRACE 4] CityStateAdapter updateCalamity activeCalamity:', state.activeCalamity);
-          console.log('[TRACE 4] CityStateAdapter updateCalamity flood_water_levels:', state.environment?.flood_water_levels);
+
           this.disasterRenderer?.updateCalamity(state.activeCalamity, state.environment);
         }
       );

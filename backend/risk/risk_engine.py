@@ -363,15 +363,19 @@ class RiskEngine:
             capacity = float(
                 node["capacity"]
             )
+            backup_power = float(
+                node.get("backup_power", 0.0)
+            )
+            effective_capacity = max(capacity, backup_power)
 
-            if not 0.0 <= capacity <= 1.0:
+            if not 0.0 <= effective_capacity <= 1.0:
                 raise ValueError(
                     "Infrastructure capacity for "
                     f"'{node_id}' must be within [0, 1]."
                 )
 
             capacities.append(
-                capacity
+                effective_capacity
             )
 
         average_capacity = (
