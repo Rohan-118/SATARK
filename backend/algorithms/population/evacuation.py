@@ -70,6 +70,6 @@ class EvacuationEngine:
             if best_route:
                 routes[start_zone] = best_route
             else:
-                routes[start_zone] = {"path": [], "safe": False, "cost": float('inf')}
+                routes[start_zone] = {"path": [], "safe": False, "cost": 9999.0}
                 
         return routes

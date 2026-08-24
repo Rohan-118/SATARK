@@ -41,8 +41,12 @@ export const RightPanel: React.FC = () => {
                     <span className="stat-value">{environment.risk.assessment.breakdown?.infrastructure !== undefined ? `${environment.risk.assessment.breakdown.infrastructure}%` : 'N/A'}</span>
                   </div>
                   <div className="stat-row">
-                    <span className="stat-label">Casualty Risk</span>
-                    <span className="stat-value">{environment.risk.assessment.breakdown?.casualties !== undefined ? `${environment.risk.assessment.breakdown.casualties}%` : 'N/A'}</span>
+                    <span className="stat-label">Estimated Affected</span>
+                    <span className="stat-value">
+                      {environment.subsystems?.casualties
+                        ? ((environment.subsystems.casualties.total_fatalities ?? 0) + (environment.subsystems.casualties.total_injuries ?? 0)).toLocaleString()
+                        : 'Unavailable'}
+                    </span>
                   </div>
                   {workflowState !== 'earthquake-result' && (
                     <>
