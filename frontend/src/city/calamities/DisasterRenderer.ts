@@ -1,27 +1,30 @@
 import * as THREE from 'three';
-import { Calamity } from '../../types/domain';
+import { Calamity, FloodEnvironment } from '../../types/domain';
 import { FloodRenderer } from './flood/FloodRenderer';
 import { EarthquakeRenderer } from './earthquake/EarthquakeRenderer';
+import { ZoneRenderer } from '../zones/ZoneRenderer';
 
 export class DisasterRenderer {
   private floodRenderer: FloodRenderer;
   private earthquakeRenderer: EarthquakeRenderer;
 
-  constructor(scene: THREE.Scene) {
-    this.floodRenderer = new FloodRenderer(scene);
+  constructor(scene: THREE.Scene, zoneRenderer: ZoneRenderer) {
+    this.floodRenderer = new FloodRenderer(scene, zoneRenderer);
     this.earthquakeRenderer = new EarthquakeRenderer(scene);
   }
 
-  public updateCalamity(calamity: Calamity | null) {
-    // Reset all renderers first
-    this.floodRenderer.clear();
-    this.earthquakeRenderer.clear();
+  public updateCalamity(calamity: Calamity | null, environment?: FloodEnvironment) {
+    if (!calamity) {
+      this.floodRenderer.clear();
+      this.earthquakeRenderer.clear();
+      return;
+    }
 
-    if (!calamity) return;
-
-    if (calamity.type === 'Flood') {
-      this.floodRenderer.render(calamity);
-    } else if (calamity.type === 'Earthquake') {
+    if (calamity.type === 'FLOOD') {
+      this.earthquakeRenderer.clear();
+      this.floodRenderer.render(calamity, environment);
+    } else if (calamity.type === 'EARTHQUAKE') {
+      this.floodRenderer.clear();
       this.earthquakeRenderer.render(calamity);
     }
   }

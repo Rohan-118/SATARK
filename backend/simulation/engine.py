@@ -557,11 +557,19 @@ class SimulationEngine:
             )
         )
 
+        if self._population_data is None and self.scenario.population_path:
+            with open(self.scenario.population_path, 'r', encoding='utf-8') as f:
+                self._population_data = json.load(f)
+
         self._shelter_data = (
             self.scenario.get_initial_state(
                 "shelter_data"
             )
         )
+
+        if self._shelter_data is None and self.scenario.shelters_path:
+            with open(self.scenario.shelters_path, 'r', encoding='utf-8') as f:
+                self._shelter_data = json.load(f)
 
         self._panic_threshold = float(
             self.scenario.get_parameter(
@@ -1077,6 +1085,17 @@ class SimulationEngine:
         )
 
         self._flood.initialize()
+
+        flood_state = self._flood.state
+        if flood_state:
+            self.world.state.environment[
+                "flood_water_levels"
+            ] = dict(
+                flood_state.get(
+                    "water_levels",
+                    {}
+                )
+            )
 
         self._flood_zone_data = {
             zone["id"]: zone

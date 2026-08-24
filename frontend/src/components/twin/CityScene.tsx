@@ -10,6 +10,7 @@ import { InfrastructureRenderer } from '../../city/infrastructure/Infrastructure
 import { fetchZones, fetchSafeZones, fetchWorldBounds } from '../../api/worldApi';
 import { useStore } from '../../store';
 import { WorldBounds } from '../../city/zones/voronoi';
+import { DevSimulationControls } from '../simulation/DevSimulationControls';
 import './CityScene.css';
 
 export const CityScene: React.FC = () => {
@@ -82,7 +83,7 @@ export const CityScene: React.FC = () => {
       const cameraController = new CameraController(renderer);
       cameraControllerRef.current = cameraController;
 
-      const disasterRenderer = new DisasterRenderer(renderer.getScene());
+      const disasterRenderer = new DisasterRenderer(renderer.getScene(), zoneRenderer);
       disasterRendererRef.current = disasterRenderer;
 
       const infrastructureRenderer = new InfrastructureRenderer(renderer.getScene());
@@ -124,7 +125,9 @@ export const CityScene: React.FC = () => {
       for (const entry of entries) {
         if (entry.target === containerRef.current) {
           const { width, height } = entry.contentRect;
-          renderer.resize(width, height);
+          if (width > 0 && height > 0) {
+            renderer.resize(width, height);
+          }
         }
       }
     });
@@ -160,6 +163,7 @@ export const CityScene: React.FC = () => {
           Loading city.glb... {progress.toFixed(0)}%
         </div>
       )}
+      {!loading && <DevSimulationControls />}
     </div>
   );
 };

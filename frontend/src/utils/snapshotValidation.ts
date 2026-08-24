@@ -1,7 +1,6 @@
-import { WorldSnapshot, RawWorldSnapshotDTO, SimulationStatus } from '../types/domain';
+import { WorldSnapshot, RawWorldSnapshotDTO, SimulationStatus, FloodEnvironment } from '../types/domain';
 import { validateAgentSnapshot } from './agentValidation';
 
-const VALID_STATUSES: Set<string> = new Set(['idle', 'running', 'paused']);
 
 /**
  * Validates a raw world snapshot payload and normalizes it into an authoritative WorldSnapshot domain object.
@@ -16,8 +15,13 @@ export function validateWorldSnapshot(raw: unknown): WorldSnapshot | null {
   const dto = raw as RawWorldSnapshotDTO;
 
   // 1. Validate agents snapshot part
-  // We pass the entire dto to validateAgentSnapshot because it expects { tick, timestamp, agents }
-  const agentSnapshot = validateAgentSnapshot(dto);
+  // We construct a RawAgentSnapshotDTO-like object to pass to validateAgentSnapshot
+  const agentSnapshotRaw = {
+    tick: dto.currentTick,
+    timestamp: dto.simulationTime,
+    agents: dto.entities || []
+  };
+  const agentSnapshot = validateAgentSnapshot(agentSnapshotRaw);
   
   if (!agentSnapshot) {
     console.warn('[SnapshotValidation] Failed to validate agents within world snapshot');
@@ -25,22 +29,32 @@ export function validateWorldSnapshot(raw: unknown): WorldSnapshot | null {
   }
 
   // 2. Extract Simulation Metadata
-  const tick = typeof dto.tick === 'number' && Number.isFinite(dto.tick) ? dto.tick : 0;
-  const timestamp = typeof dto.timestamp === 'number' && Number.isFinite(dto.timestamp) ? dto.timestamp : Date.now();
+  const tick = typeof dto.currentTick === 'number' && Number.isFinite(dto.currentTick) ? dto.currentTick : 0;
+  const timestamp = typeof dto.simulationTime === 'number' && Number.isFinite(dto.simulationTime) ? dto.simulationTime : Date.now();
   
   let status: SimulationStatus | undefined = undefined;
-  if (dto.status) {
-    const lowerStatus = dto.status.toLowerCase();
-    if (VALID_STATUSES.has(lowerStatus)) {
-      status = lowerStatus as SimulationStatus;
-    } else {
-      console.warn(`[SnapshotValidation] Unknown simulation status '${dto.status}', ignoring`);
-    }
+  if (dto.simulation) {
+    if (dto.simulation.paused) status = 'paused';
+    else if (dto.simulation.initialized) status = 'running';
+    else status = 'idle';
   }
 
   // 3. Extract Zone States if any
-  const zoneStates = dto.zone_states && typeof dto.zone_states === 'object' 
-    ? (dto.zone_states as Record<string, unknown>)
+  const zoneStates = dto.environment && typeof dto.environment === 'object' 
+    ? (dto.environment as Record<string, unknown>)
+    : undefined;
+
+  // 4. Extract Calamity and Environment for 7B.1
+  let activeCalamity: any = undefined;
+  if (dto.activeCalamity === 'FLOOD' || dto.activeCalamity === 'EARTHQUAKE') {
+    activeCalamity = {
+      type: dto.activeCalamity,
+      active: true
+    };
+  }
+
+  const environment = dto.environment && typeof dto.environment === 'object'
+    ? (dto.environment as unknown as FloodEnvironment) // We cast it to the correct domain type
     : undefined;
 
   return {
@@ -50,6 +64,8 @@ export function validateWorldSnapshot(raw: unknown): WorldSnapshot | null {
       ...(status ? { status } : {})
     },
     agents: agentSnapshot,
+    ...(activeCalamity ? { activeCalamity } : {}),
+    ...(environment ? { environment } : {}),
     ...(zoneStates ? { zoneStates } : {})
   };
 }

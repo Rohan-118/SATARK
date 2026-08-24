@@ -18,7 +18,6 @@ export class CityStateAdapter {
   private unsubscribeSimulation?: () => void;
   
   private lastSelectedZoneId: string | null = null;
-  private lastCalamityType: string | null = null;
 
   constructor(
     zoneRenderer: ZoneRenderer,
@@ -63,25 +62,21 @@ export class CityStateAdapter {
     if (this.agentRenderer) {
       this.unsubscribeAgents = useStore.subscribe(
         (state: StoreState) => {
-          this.agentRenderer?.updateAgents(Object.values(state.agents));
+          const agentsArray = Object.values(state.agents);
+          console.log('[DEBUG AGENTS] CityStateAdapter received agents update:', agentsArray.length);
+          this.agentRenderer?.updateAgents(agentsArray);
         }
       );
     }
     
     // Listen to Simulation state changes for calamities
     if (this.disasterRenderer) {
-      const state = useStore.getState();
-      this.lastCalamityType = state.activeCalamity?.type || null;
-      
       this.unsubscribeSimulation = useStore.subscribe(
         (state: StoreState) => {
-          const currentCalamityType = state.activeCalamity?.type || null;
-          
-          // Only update if calamity identity changes (or if we need to stream continuous tick data later)
-          if (currentCalamityType !== this.lastCalamityType) {
-            this.lastCalamityType = currentCalamityType;
-            this.disasterRenderer?.updateCalamity(state.activeCalamity);
-          }
+          // We call updateCalamity on every state change when disasterRenderer is present
+          // so it can receive dynamic environment updates (like flood water levels)
+          console.log('[DEBUG FLOOD] CityStateAdapter calling disasterRenderer.updateCalamity', { activeCalamity: state.activeCalamity, environment: state.environment });
+          this.disasterRenderer?.updateCalamity(state.activeCalamity, state.environment);
         }
       );
     }
@@ -94,7 +89,7 @@ export class CityStateAdapter {
       this.agentRenderer.updateAgents(Object.values(state.agents));
     }
     if (this.disasterRenderer) {
-      this.disasterRenderer.updateCalamity(state.activeCalamity);
+      this.disasterRenderer.updateCalamity(state.activeCalamity, state.environment);
     }
   }
 
