@@ -15,7 +15,7 @@ class CasualtiesEngine:
             if node['type'] == 'medical'
         }
 
-    def update_casualties(self, current_populations, flood_states, bottlenecks, panic_states, infra_states):
+    def update_casualties(self, current_populations, flood_states, bottlenecks, panic_states, infra_states, earthquake_state=None):
         """
         Calculates new injuries and fatalities for this simulation tick.
         
@@ -24,6 +24,7 @@ class CasualtiesEngine:
         bottlenecks: dict of {zone_id: congestion_ratio} from crowd.py
         panic_states: dict of {zone_id: panic_level_0_to_1} from panic.py
         infra_states: dict of real-time infrastructure node health
+        earthquake_state: optional dict containing earthquake damage data
         """
         new_injuries_this_tick = 0
         new_fatalities_this_tick = 0
@@ -68,11 +69,20 @@ class CasualtiesEngine:
                 crush_injury_rate = (over_capacity * panic) * 0.03
                 crush_fatality_rate = (over_capacity * panic) * 0.002
 
+            # --- Vector C: Structural Collapse (Earthquake) ---
+            eq_injury_rate = 0.0
+            eq_fatality_rate = 0.0
+            if earthquake_state and zone_id in earthquake_state.get("damage", {}).get("zone_damage", {}):
+                collapse = earthquake_state["damage"]["zone_damage"][zone_id].get("collapse_ratio", 0.0)
+                # 10% fatality and 30% injury rate of the exposed population for a total collapse
+                eq_fatality_rate = collapse * 0.10
+                eq_injury_rate = collapse * 0.30
+
             # Calculate raw numbers for this hour
-            raw_injuries = int(people_exposed * (env_injury_rate + crush_injury_rate))
-            raw_fatalities = int(people_exposed * (env_fatality_rate + crush_fatality_rate))
+            raw_injuries = int(people_exposed * (env_injury_rate + crush_injury_rate + eq_injury_rate))
+            raw_fatalities = int(people_exposed * (env_fatality_rate + crush_fatality_rate + eq_fatality_rate))
             
-            # --- Vector C: Medical System Collapse ---
+            # --- Vector D: Medical System Collapse ---
             # If the hospitals have failed, a percentage of the new injuries become fatalities
             triage_failure_rate = 1.0 - avg_medical_health
             fatalities_from_untreated_injuries = int(raw_injuries * (triage_failure_rate * 0.15))

@@ -38,9 +38,6 @@ export const createSimulationSlice: StateCreator<
   setCurrentTick: (currentTick) => set({ currentTick }),
 
   applyWorldSnapshot: (snapshot) => {
-    console.log('[TRACE 3] applyWorldSnapshot called. activeCalamity:', snapshot.activeCalamity);
-    console.log('[TRACE 3] applyWorldSnapshot environment:', snapshot.environment);
-    console.log('[TRACE 3] applyWorldSnapshot flood_water_levels:', snapshot.environment?.flood_water_levels);
     // 1. Distribute agent state to agentSlice
     get().setAgentSnapshot(snapshot.agents);
 

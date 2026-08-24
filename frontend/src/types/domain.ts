@@ -34,6 +34,11 @@ export interface Calamity {
 export interface FloodEnvironment {
   flood_water_levels: Record<string, number>;
   rainfall_intensity: number;
+  risk?: any;
+  decision?: any;
+  earthquake_state?: any;
+  subsystems?: any;
+  intervention?: any;
 }
 
 export * from './simulation';

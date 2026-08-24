@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from core.enums import CalamityType
 from core.types import SimulationConfig
 
 from decision.intervention import (
@@ -70,6 +71,10 @@ def _state_payload(
 
     state["intervention"] = (
         engine.active_intervention
+    )
+
+    state["interventions"] = (
+        engine.active_interventions
     )
 
     state["subsystems"] = {
@@ -149,6 +154,9 @@ class SimulationInitializeView(
         )
 
         engine.initialize()
+        
+        if config.calamity_type == CalamityType.EARTHQUAKE:
+            engine.step()
 
         _active_engine = engine
 

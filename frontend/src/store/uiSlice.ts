@@ -1,6 +1,6 @@
 import { StateCreator } from 'zustand';
 
-export type WorkflowState = 'idle' | 'zone-selected' | 'disaster-active' | 'disaster-finished';
+export type WorkflowState = 'idle' | 'zone-selected' | 'disaster-active' | 'disaster-finished' | 'earthquake-result';
 
 export interface UiSlice {
   workflowState: WorkflowState;

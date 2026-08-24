@@ -1,0 +1,159 @@
+{
+  "version": "0.1.0",
+  "status": "derived_estimate",
+  "source": {
+    "primary": "city.glb",
+    "method": "Population allocated across 21 GLB-derived zones in proportion to a building-footprint proxy.",
+    "calibration_total_residents": 250000,
+    "note": "These are simulation estimates, not official census counts. They are intended for relative exposure/casualty simulation and must be replaceable later without changing algorithms."
+  },
+  "zones": [
+    {
+      "zone_id": "Z01",
+      "resident_population_estimate": 14480,
+      "building_component_count_proxy": 11,
+      "building_footprint_proxy": 59562.3,
+      "population_weight": 0.057922
+    },
+    {
+      "zone_id": "Z02",
+      "resident_population_estimate": 10016,
+      "building_component_count_proxy": 34,
+      "building_footprint_proxy": 41202.0,
+      "population_weight": 0.040067
+    },
+    {
+      "zone_id": "Z03",
+      "resident_population_estimate": 3791,
+      "building_component_count_proxy": 10,
+      "building_footprint_proxy": 15596.5,
+      "population_weight": 0.015167
+    },
+    {
+      "zone_id": "Z04",
+      "resident_population_estimate": 15365,
+      "building_component_count_proxy": 54,
+      "building_footprint_proxy": 63201.4,
+      "population_weight": 0.061461
+    },
+    {
+      "zone_id": "Z05",
+      "resident_population_estimate": 7474,
+      "building_component_count_proxy": 20,
+      "building_footprint_proxy": 30745.9,
+      "population_weight": 0.029899
+    },
+    {
+      "zone_id": "Z06",
+      "resident_population_estimate": 11743,
+      "building_component_count_proxy": 18,
+      "building_footprint_proxy": 48305.0,
+      "population_weight": 0.046975
+    },
+    {
+      "zone_id": "Z07",
+      "resident_population_estimate": 3058,
+      "building_component_count_proxy": 4,
+      "building_footprint_proxy": 12579.4,
+      "population_weight": 0.012233
+    },
+    {
+      "zone_id": "Z08",
+      "resident_population_estimate": 11401,
+      "building_component_count_proxy": 19,
+      "building_footprint_proxy": 46896.3,
+      "population_weight": 0.045605
+    },
+    {
+      "zone_id": "Z09",
+      "resident_population_estimate": 4215,
+      "building_component_count_proxy": 14,
+      "building_footprint_proxy": 17341.2,
+      "population_weight": 0.016864
+    },
+    {
+      "zone_id": "Z10",
+      "resident_population_estimate": 3104,
+      "building_component_count_proxy": 10,
+      "building_footprint_proxy": 12767.6,
+      "population_weight": 0.012416
+    },
+    {
+      "zone_id": "Z11",
+      "resident_population_estimate": 10959,
+      "building_component_count_proxy": 9,
+      "building_footprint_proxy": 45081.0,
+      "population_weight": 0.043839
+    },
+    {
+      "zone_id": "Z12",
+      "resident_population_estimate": 5640,
+      "building_component_count_proxy": 14,
+      "building_footprint_proxy": 23200.3,
+      "population_weight": 0.022561
+    },
+    {
+      "zone_id": "Z13",
+      "resident_population_estimate": 22464,
+      "building_component_count_proxy": 23,
+      "building_footprint_proxy": 92401.3,
+      "population_weight": 0.089856
+    },
+    {
+      "zone_id": "Z14",
+      "resident_population_estimate": 16845,
+      "building_component_count_proxy": 11,
+      "building_footprint_proxy": 69289.0,
+      "population_weight": 0.067381
+    },
+    {
+      "zone_id": "Z15",
+      "resident_population_estimate": 20998,
+      "building_component_count_proxy": 8,
+      "building_footprint_proxy": 86372.9,
+      "population_weight": 0.083994
+    },
+    {
+      "zone_id": "Z16",
+      "resident_population_estimate": 7130,
+      "building_component_count_proxy": 13,
+      "building_footprint_proxy": 29329.8,
+      "population_weight": 0.028522
+    },
+    {
+      "zone_id": "Z17",
+      "resident_population_estimate": 13429,
+      "building_component_count_proxy": 9,
+      "building_footprint_proxy": 55238.1,
+      "population_weight": 0.053717
+    },
+    {
+      "zone_id": "Z18",
+      "resident_population_estimate": 12092,
+      "building_component_count_proxy": 8,
+      "building_footprint_proxy": 49739.4,
+      "population_weight": 0.04837
+    },
+    {
+      "zone_id": "Z19",
+      "resident_population_estimate": 6409,
+      "building_component_count_proxy": 8,
+      "building_footprint_proxy": 26365.9,
+      "population_weight": 0.02564
+    },
+    {
+      "zone_id": "Z20",
+      "resident_population_estimate": 36436,
+      "building_component_count_proxy": 10,
+      "building_footprint_proxy": 149875.2,
+      "population_weight": 0.145747
+    },
+    {
+      "zone_id": "Z21",
+      "resident_population_estimate": 12951,
+      "building_component_count_proxy": 7,
+      "building_footprint_proxy": 53230.5,
+      "population_weight": 0.051764
+    }
+  ]
+}

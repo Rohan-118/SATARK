@@ -106,3 +106,12 @@ export const resetSimulation = async (): Promise<WorldSnapshot> => {
   }
   return snapshot;
 };
+
+export const applyIntervention = async (intervention_id: string): Promise<WorldSnapshot> => {
+  const data = await apiClient.post('/simulation/intervention/', { intervention_id });
+  const snapshot = normalizeWorldSnapshot(data.state);
+  if (!snapshot) {
+    throw new Error('Received invalid world snapshot from backend');
+  }
+  return snapshot;
+};

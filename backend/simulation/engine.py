@@ -263,11 +263,9 @@ class SimulationEngine:
             Recommendation
         ] = []
 
-        self._active_intervention: (
-            dict[str, Any] | None
-        ) = None
+        self._active_interventions: list[dict[str, Any]] = []
 
-        self._intervention_applied = False
+        
 
         # --------------------------------------------------------------
         # Lifecycle
@@ -426,18 +424,14 @@ class SimulationEngine:
         ]
 
     @property
-    def active_intervention(
-        self,
-    ) -> dict[
-        str,
-        Any
-    ] | None:
-        if self._active_intervention is None:
-            return None
+    def active_interventions(self) -> list[dict[str, Any]]:
+        return [dict(i) for i in self._active_interventions]
 
-        return dict(
-            self._active_intervention
-        )
+    @property
+    def active_intervention(self) -> dict[str, Any] | None:
+        if not self._active_interventions:
+            return None
+        return dict(self._active_interventions[-1])
 
     @property
     def optimization_result(
@@ -948,16 +942,16 @@ class SimulationEngine:
 
         self._recommendations = []
 
-        self._active_intervention = None
+        self._active_interventions = []
 
-        self._intervention_applied = False
+        
 
         self.world.state.environment[
             "decision"
         ] = {
             "priority": None,
             "recommendations": [],
-            "active_intervention": None,
+            "active_interventions": [],
         }
 
     # ------------------------------------------------------------------
@@ -1038,15 +1032,96 @@ class SimulationEngine:
             self.scenario.calamity_type
             == CalamityType.EARTHQUAKE
         ):
-            raise NotImplementedError(
-                "Earthquake simulation integration "
-                "will be implemented in a later phase."
-            )
+            self._initialize_earthquake()
+            return
 
         raise ValueError(
             "Unsupported calamity type: "
             f"{self.scenario.calamity_type}"
         )
+
+    def _initialize_earthquake(
+        self,
+    ) -> None:
+        
+        zone_mapping_path = (
+            self.scenario.zone_mapping_path
+        )
+        if not zone_mapping_path:
+            raise ValueError("Earthquake scenarios require the 'zone_mapping_path' parameter.")
+            
+        with Path(zone_mapping_path).open("r", encoding="utf-8") as f:
+            zone_data_raw = json.load(f)
+            
+        zone_data = {}
+        for z in zone_data_raw.get("zones", []):
+            if "center_world" in z:
+                # 1 degree of lat/lon is approx 111.32 km (111320 meters)
+                # Mapping world meters to degrees preserves true scale for haversine
+                z["lat"] = z["center_world"]["z"] / 111320.0
+                z["lon"] = z["center_world"]["x"] / 111320.0
+            else:
+                z["lat"] = 0.0
+                z["lon"] = 0.0
+            zone_data[z["id"]] = z
+
+        infrastructure_path = (
+            self.scenario.infrastructure_path
+        )
+        if not infrastructure_path:
+            raise ValueError("Earthquake scenarios require the 'infrastructure_path' parameter.")
+            
+        with Path(infrastructure_path).open("r", encoding="utf-8") as f:
+            infra_data_raw = json.load(f)
+        infra_nodes = infra_data_raw.get("infrastructure", [])
+
+        magnitude = float(self.scenario.get_parameter("magnitude", 5.0))
+        depth_km = float(self.scenario.get_parameter("depth_km", 10.0))
+        
+        zone_id = self.scenario.get_parameter("zone_id")
+        if zone_id and zone_id in zone_data:
+            epicenter_lat = zone_data[zone_id]["lat"]
+            epicenter_lon = zone_data[zone_id]["lon"]
+        else:
+            epicenter_lat = float(self.scenario.get_parameter("epicenter_lat", 0.0))
+            epicenter_lon = float(self.scenario.get_parameter("epicenter_lon", 0.0))
+
+        from calamities.earthquake import Earthquake
+        self._earthquake = Earthquake(
+            zone_data=zone_data,
+            infrastructure_data=infra_nodes,
+            epicenter_lat=epicenter_lat,
+            epicenter_lon=epicenter_lon,
+            magnitude=magnitude,
+            depth_km=depth_km,
+        )
+        self._earthquake.initialize()
+        
+        eq_state = self._earthquake.step(1.0)
+        
+        self.world.state.environment["earthquake_state"] = eq_state
+        self.world.state.environment["active_calamity"] = eq_state
+        
+        infra_damage = eq_state.get("damage", {}).get("infrastructure_damage", {})
+        self._infrastructure_state = {
+            str(node_id): {
+                "type": damage_info.get("type", "UNKNOWN"),
+                "zone_id": damage_info.get("zone_id"),
+                "capacity": damage_info.get("structural_integrity", 1.0)
+            }
+            for node_id, damage_info in infra_damage.items()
+        }
+        self.world.state.environment["infrastructure"] = self._infrastructure_state
+
+        self._infrastructure_network = ExplainableNetwork(
+            str(infrastructure_path)
+        )
+
+        self._casualty_state = {
+            "total_fatalities": 0,
+            "total_injuries": 0
+        }
+        self.world.state.environment["casualties"] = self._casualty_state
 
     def _initialize_flood(
         self,
@@ -1195,11 +1270,7 @@ class SimulationEngine:
             normalized["intervention_id"]
         )
 
-        if self._intervention_applied:
-            raise RuntimeError(
-                "An intervention has already been applied to this "
-                "SimulationEngine instance."
-            )
+
 
         environment = (
             self._build_intervention_environment()
@@ -1217,17 +1288,24 @@ class SimulationEngine:
             updated_environment
         )
 
-        self._active_intervention = (
-            dict(normalized)
-        )
+        intervention_infra = self.world.state.environment.get("intervention_infrastructure", {})
+        if intervention_infra:
+            for node_id, node_state in intervention_infra.items():
+                if node_id in self._infrastructure_state:
+                    self._infrastructure_state[node_id].update(node_state)
+                    self.world.state.environment["infrastructure"][node_id] = self._infrastructure_state[node_id]
 
-        self._intervention_applied = True
+        if self._risk_assessment:
+            self._step_risk()
+            self._step_decision()
+
+        self._active_interventions.append(dict(normalized))
+
+        
 
         self._record_intervention_application()
 
-        return dict(
-            self._active_intervention
-        )
+        return dict(self._active_interventions[-1])
 
     def apply_selected_intervention(
         self,
@@ -1372,14 +1450,7 @@ class SimulationEngine:
                 for recommendation
                 in self._recommendations
             ],
-            "active_intervention": (
-                dict(
-                    self._active_intervention
-                )
-                if self._active_intervention
-                is not None
-                else None
-            ),
+            "active_interventions": [dict(i) for i in self._active_interventions],
         }
 
         self.world.state.environment[
@@ -1393,14 +1464,7 @@ class SimulationEngine:
             "applied_simulation_time": (
                 self.clock.simulation_time
             ),
-            "action": (
-                dict(
-                    self._active_intervention
-                )
-                if self._active_intervention
-                is not None
-                else None
-            ),
+            "actions": [dict(i) for i in self._active_interventions],
         }
 
         self.world.state.record_event(
@@ -1412,14 +1476,7 @@ class SimulationEngine:
                 "simulation_time": (
                     self.clock.simulation_time
                 ),
-                "intervention": (
-                    dict(
-                        self._active_intervention
-                    )
-                    if self._active_intervention
-                    is not None
-                    else None
-                ),
+                "interventions": [dict(i) for i in self._active_interventions],
             }
         )
 
@@ -1461,20 +1518,13 @@ class SimulationEngine:
         contract and must not be inferred or fabricated.
         """
 
-        if not self._intervention_applied:
+        if not self._active_interventions:
             return
 
-        previous = (
-            dict(
-                self._active_intervention
-            )
-            if self._active_intervention
-            is not None
-            else None
-        )
+        previous = dict(self._active_interventions[-1]) if self._active_interventions else None
 
-        self._active_intervention = None
-        self._intervention_applied = False
+        self._active_interventions = []
+        
 
         self.world.state.environment[
             "intervention"
@@ -1501,7 +1551,7 @@ class SimulationEngine:
                 for recommendation
                 in self._recommendations
             ],
-            "active_intervention": None,
+            "active_interventions": [],
         }
 
         self.world.state.record_event(
@@ -1801,12 +1851,9 @@ class SimulationEngine:
             "fatalities": fatalities,
             "injuries": injuries,
             "active_intervention": (
-                dict(
-                    self._active_intervention
-                )
-                if self._active_intervention is not None
-                else None
+                dict(self._active_interventions[-1]) if self._active_interventions else None
             ),
+            "active_interventions": [dict(i) for i in self._active_interventions],
         }
 
         return SimulationEvaluation(
@@ -2019,9 +2066,9 @@ class SimulationEngine:
 
         self._recommendations = []
 
-        self._active_intervention = None
+        self._active_interventions = []
 
-        self._intervention_applied = False
+        
 
         self._optimization_result = None
 
@@ -2120,6 +2167,11 @@ class SimulationEngine:
             self._step_flood(
                 delta_time
             )
+        elif (
+            self.scenario.calamity_type
+            == CalamityType.EARTHQUAKE
+        ):
+            pass # Earthquake is event-based and already stepped in initialize
 
     def _apply_live_intervention_to_flood(
         self,
@@ -2279,8 +2331,11 @@ class SimulationEngine:
             self._panic_state
         )
 
-        intervention = self._active_intervention
-
+        if not self._active_interventions:
+            return panic_states
+        
+        # Take the most recent mandatory_evacuation_order if multiple exist
+        intervention = next((i for i in reversed(self._active_interventions) if str(i.get("intervention_id", i.get("id", i.get("action", "")))) == "mandatory_evacuation_order"), None)
         if not intervention:
             return panic_states
 
@@ -3031,6 +3086,8 @@ class SimulationEngine:
                 )
             )
 
+            earthquake_state = self.world.state.environment.get("earthquake_state")
+
             self._casualty_state = (
                 self._casualties_engine
                 .update_casualties(
@@ -3049,6 +3106,7 @@ class SimulationEngine:
                     infra_states=(
                         self._infrastructure_state
                     ),
+                    earthquake_state=earthquake_state,
                 )
             )
 
@@ -3642,8 +3700,8 @@ class SimulationEngine:
                 self._priority_state
             ),
             "recommendations": [],
-            "active_intervention": (
-                self._active_intervention
+            "active_interventions": (
+                self.active_interventions
             ),
         }
 
@@ -3651,10 +3709,12 @@ class SimulationEngine:
         # Existing recommendation algorithm
         # --------------------------------------------------------------
 
+        applied_ids = [str(i.get("intervention_id", i.get("id", i.get("action", "")))) for i in self._active_interventions]
         raw_recommendations = (
             self._algorithm_recommendation_engine
             .generate_recommendations(
-                risk_assessment
+                risk_assessment,
+                applied_intervention_ids=applied_ids
             )
         )
 
@@ -3689,8 +3749,8 @@ class SimulationEngine:
             "recommendations": (
                 recommendation_state
             ),
-            "active_intervention": (
-                self._active_intervention
+            "active_interventions": (
+                self.active_interventions
             ),
         }
 
@@ -3698,10 +3758,17 @@ class SimulationEngine:
         # Explicit scenario intervention
         # --------------------------------------------------------------
 
+        intervention_id = (
+            str(self.scenario.intervention.get("intervention_id", self.scenario.intervention.get("id", self.scenario.intervention.get("action"))))
+            if self.scenario.intervention
+            else None
+        )
+
         if (
             self.scenario.intervention
             is not None
-            and not self._intervention_applied
+            and intervention_id
+            and not any(str(i.get("intervention_id", i.get("id", i.get("action")))) == intervention_id for i in self._active_interventions)
         ):
 
             self._apply_scenario_intervention(
@@ -3722,8 +3789,8 @@ class SimulationEngine:
                 "recommendations": (
                     recommendation_state
                 ),
-                "active_intervention": (
-                    self._active_intervention
+                "active_interventions": (
+                    self.active_interventions
                 ),
             }
         )
@@ -3793,17 +3860,11 @@ class SimulationEngine:
             updated_environment
         )
 
-        self._active_intervention = dict(
-            intervention
-        )
+        intervention_to_add = dict(intervention)
+        intervention_to_add["intervention_id"] = str(intervention_id)
+        self._active_interventions.append(intervention_to_add)
 
-        self._active_intervention[
-            "intervention_id"
-        ] = str(
-            intervention_id
-        )
-
-        self._intervention_applied = True
+        
 
         self.world.state.environment[
             "decision"
@@ -3816,9 +3877,7 @@ class SimulationEngine:
                 for recommendation
                 in self._recommendations
             ],
-            "active_intervention": dict(
-                self._active_intervention
-            ),
+            "active_interventions": self.active_interventions,
         }
 
         self.world.state.record_event(
@@ -3829,9 +3888,7 @@ class SimulationEngine:
                 "tick": (
                     self.clock.current_tick
                 ),
-                "intervention": dict(
-                    self._active_intervention
-                ),
+                "interventions": self.active_interventions,
             }
         )
 
@@ -3990,9 +4047,9 @@ class SimulationEngine:
             Mapping,
         ):
 
-            self.world.state.environment[
-                "intervention_zones"
-            ] = {
+            if "intervention_zones" not in self.world.state.environment:
+                self.world.state.environment["intervention_zones"] = {}
+            self.world.state.environment["intervention_zones"].update({
                 str(
                     zone_id
                 ): dict(
@@ -4007,7 +4064,7 @@ class SimulationEngine:
                     zone_id,
                     zone_state,
                 ) in zones.items()
-            }
+            })
 
         transit_capacities = (
             intervention_environment.get(
@@ -4021,9 +4078,9 @@ class SimulationEngine:
             Mapping,
         ):
 
-            self.world.state.environment[
-                "transit_capacities"
-            ] = {
+            if "transit_capacities" not in self.world.state.environment:
+                self.world.state.environment["transit_capacities"] = {}
+            self.world.state.environment["transit_capacities"].update({
                 str(
                     zone_id
                 ): float(
@@ -4033,7 +4090,7 @@ class SimulationEngine:
                     zone_id,
                     capacity,
                 ) in transit_capacities.items()
-            }
+            })
 
         infrastructure_nodes = (
             intervention_environment.get(
@@ -4047,9 +4104,9 @@ class SimulationEngine:
             Mapping,
         ):
 
-            self.world.state.environment[
-                "intervention_infrastructure"
-            ] = {
+            if "intervention_infrastructure" not in self.world.state.environment:
+                self.world.state.environment["intervention_infrastructure"] = {}
+            self.world.state.environment["intervention_infrastructure"].update({
                 str(
                     node_id
                 ): dict(
@@ -4064,7 +4121,7 @@ class SimulationEngine:
                     node_id,
                     node_state,
                 ) in infrastructure_nodes.items()
-            }
+            })
 
     # ------------------------------------------------------------------
     # Agent movement
@@ -4075,8 +4132,11 @@ class SimulationEngine:
     ) -> float:
         """Return the active mandatory-evacuation movement multiplier."""
 
-        intervention = self._active_intervention
-
+        if not self._active_interventions:
+            return 1.0
+        
+        # Take the most recent mandatory_evacuation_order if multiple exist
+        intervention = next((i for i in reversed(self._active_interventions) if str(i.get("intervention_id", i.get("id", i.get("action", "")))) == "mandatory_evacuation_order"), None)
         if not intervention:
             return 1.0
 

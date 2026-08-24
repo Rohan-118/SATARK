@@ -1,0 +1,68 @@
+{
+  "infrastructure": [
+    {
+      "id": "power_station_main",
+      "name": "Central Thermal Power Plant",
+      "type": "power",
+      "zone_id": "Z01",
+      "vulnerability_threshold": 0.6,
+      "backup_power": 0.0,
+      "depends_on": []
+    },
+    {
+      "id": "power_poles_lowland",
+      "name": "Lowland Grid Lines",
+      "type": "power_routing",
+      "zone_id": "Z02",
+      "vulnerability_threshold": 0.25,
+      "backup_power": 0.0,
+      "depends_on": [
+        {"parent_id": "power_station_main", "weight": 1.0}
+      ]
+    },
+    {
+      "id": "telecom_tower_1",
+      "name": "Central Telecom & Emergency Relay",
+      "type": "comms",
+      "zone_id": "Z02",
+      "vulnerability_threshold": 0.4,
+      "backup_power": 0.1,
+      "depends_on": [
+        {"parent_id": "power_poles_lowland", "weight": 0.9}
+      ]
+    },
+    {
+      "id": "water_pumping_station",
+      "name": "District Water Pumping Station",
+      "type": "water",
+      "zone_id": "Z03",
+      "vulnerability_threshold": 0.5,
+      "backup_power": 0.0,
+      "depends_on": [
+        {"parent_id": "power_poles_lowland", "weight": 0.8}
+      ]
+    },
+    {
+      "id": "hospital_general",
+      "name": "City General Hospital",
+      "type": "medical",
+      "zone_id": "Z04",
+      "vulnerability_threshold": 0.7,
+      "backup_power": 0.2,
+      "depends_on": [
+        {"parent_id": "power_poles_lowland", "weight": 0.5},
+        {"parent_id": "water_pumping_station", "weight": 0.3},
+        {"parent_id": "telecom_tower_1", "weight": 0.2}
+      ]
+    },
+    {
+      "id": "main_bridge_access",
+      "name": "River Access Bridge",
+      "type": "transport",
+      "zone_id": "Z02",
+      "vulnerability_threshold": 0.3,
+      "backup_power": 0.0,
+      "depends_on": []
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "shelters": [
+    { "id": "S1", "shelter_id": "S1", "zone_id": "Z04", "type": "Municipal School", "capacity": 15000 },
+    { "id": "S2", "shelter_id": "S2", "zone_id": "Z13", "type": "Exhibition Grounds", "capacity": 35000 },
+    { "id": "S3", "shelter_id": "S3", "zone_id": "Z20", "type": "Community Hall", "capacity": 20000 }
+  ]
+}
