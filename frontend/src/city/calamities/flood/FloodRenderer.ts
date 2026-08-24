@@ -11,7 +11,7 @@ export class FloodRenderer {
   // Phase 3: Cache the static geometry for each zone.
   private cachedGeometries: Map<string, THREE.BufferGeometry> = new Map();
   // Phase 2: Simple diagnostic color, no transparency, etc.
-  private sharedMaterial: THREE.MeshBasicMaterial;
+  private sharedMaterial: THREE.MeshPhongMaterial;
   
   // Track active meshes
   private meshes: Map<string, THREE.Mesh> = new Map();
@@ -23,9 +23,14 @@ export class FloodRenderer {
     this.group.position.y = 0.0;
     this.scene.add(this.group);
 
-    this.sharedMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff00ff, // Magenta diagnostic color
-      side: THREE.DoubleSide
+    this.sharedMaterial = new THREE.MeshPhongMaterial({
+      color: 0x0077be, // Blue water color
+      transparent: true,
+      opacity: 0.7,
+      shininess: 90,
+      specular: 0x55aaff,
+      side: THREE.DoubleSide,
+      depthWrite: false
     });
   }
 
