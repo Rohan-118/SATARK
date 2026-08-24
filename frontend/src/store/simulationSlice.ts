@@ -1,5 +1,5 @@
 import { StateCreator } from 'zustand';
-import { Calamity, WorldSnapshot, SimulationStatus } from '../types/domain';
+import { Calamity, WorldSnapshot, SimulationStatus, FloodEnvironment } from '../types/domain';
 import type { StoreState } from './index';
 
 export interface SimulationSlice {
@@ -7,6 +7,7 @@ export interface SimulationSlice {
   status: SimulationStatus;
   currentTick: number;
   lastUpdated: number | null; // Tracks when the last snapshot was received
+  environment?: FloodEnvironment; 
 
   // Actions
   setActiveCalamity: (calamity: Calamity | null) => void;
@@ -30,12 +31,14 @@ export const createSimulationSlice: StateCreator<
   status: 'idle',
   currentTick: 0,
   lastUpdated: null,
+  environment: undefined,
   
   setActiveCalamity: (activeCalamity) => set({ activeCalamity }),
   setStatus: (status) => set({ status }),
   setCurrentTick: (currentTick) => set({ currentTick }),
 
   applyWorldSnapshot: (snapshot) => {
+    console.log('[DEBUG AGENTS/FLOOD] Zustand applyWorldSnapshot called with:', { agentsCount: snapshot.agents?.agents?.length, activeCalamity: snapshot.activeCalamity, environment: snapshot.environment });
     // 1. Distribute agent state to agentSlice
     get().setAgentSnapshot(snapshot.agents);
 
@@ -43,7 +46,9 @@ export const createSimulationSlice: StateCreator<
     set({
       currentTick: snapshot.simulation.tick,
       lastUpdated: snapshot.simulation.timestamp,
-      ...(snapshot.simulation.status ? { status: snapshot.simulation.status } : {})
+      ...(snapshot.simulation.status ? { status: snapshot.simulation.status } : {}),
+      activeCalamity: snapshot.activeCalamity !== undefined ? snapshot.activeCalamity : get().activeCalamity,
+      environment: snapshot.environment
     });
   }
 });

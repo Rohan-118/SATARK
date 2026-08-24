@@ -74,15 +74,18 @@ export interface RawAgentDTO {
     y: number;
     z?: number;
   };
-  zone_id?: string;
   zoneId?: string;
+  zone_id?: string;
   state?: string;
+  type?: string;
+  // Optional forward-compatible fields
+  targetFacilityId?: string;
   target_facility_id?: string;
   speed?: number;
 }
 
 /**
- * Raw Snapshot DTO format expected from future Django/DRF REST endpoint.
+ * @deprecated RawAgentSnapshotDTO is no longer used. Use RawWorldSnapshotDTO instead.
  */
 export interface RawAgentSnapshotDTO {
   tick?: number;

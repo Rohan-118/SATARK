@@ -1,4 +1,4 @@
-export type CalamityType = 'Flood' | 'Earthquake';
+export type CalamityType = 'FLOOD' | 'EARTHQUAKE';
 
 export interface WorldCoordinate {
   x: number;
@@ -29,6 +29,11 @@ export * from './agent';
 export interface Calamity {
   type: CalamityType;
   active: boolean;
+}
+
+export interface FloodEnvironment {
+  flood_water_levels: Record<string, number>;
+  rainfall_intensity: number;
 }
 
 export * from './simulation';

@@ -162,13 +162,16 @@ export class AgentRenderer {
    * Handles additions, position updates, and removals.
    */
   public updateAgents(agents: Agent[]): void {
+    console.log('[DEBUG AGENTS] AgentRenderer.updateAgents called with:', agents.length);
     if (this.isDisposed) return;
 
     if (!this.isLoaded) {
+      console.log('[DEBUG AGENTS] AgentRenderer not loaded yet. Queuing', agents.length, 'agents.');
       // Store pending agents until GLB finishes loading
       this.pendingAgents = agents;
       return;
     }
+
 
     const activeIds = new Set<string>();
 
@@ -179,6 +182,9 @@ export class AgentRenderer {
       if (existing) {
         // Update world position directly from domain coordinates
         existing.root.position.set(agent.position.x, agent.position.y, agent.position.z);
+        // Couple agent state to animation: PANIC -> run, NORMAL / SAFE -> idle
+        const targetAnimation = this.getTargetAnimation(agent);
+        this.setAgentAnimation(agent.id, targetAnimation);
       } else {
         // Create new visual instance
         const instance = this.createAgentInstance(agent);
@@ -288,6 +294,18 @@ export class AgentRenderer {
   // ────────────────────────────────────────────────────────────
 
   /**
+   * Determine target animation from authoritative domain agent state:
+   * NORMAL → idle
+   * SAFE   → idle
+   * PANIC  → run
+   */
+  private getTargetAnimation(agent: Agent): AgentAnimationName {
+    if (agent.state === 'PANIC') return 'run';
+    if (agent.state === 'NORMAL' || agent.state === 'SAFE') return 'idle';
+    return this.defaultAnimation;
+  }
+
+  /**
    * Clone master character and initialize instance transforms, actions, and mixer.
    */
   private createAgentInstance(agent: Agent): RenderedAgentInstance | null {
@@ -299,13 +317,19 @@ export class AgentRenderer {
     root.position.set(agent.position.x, agent.position.y, agent.position.z);
     root.userData = { isAgent: true, agentId: agent.id };
 
-    // Enable shadows on character meshes
+    // Enable shadows and fix frustum culling for skinned meshes
     root.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         child.castShadow = true;
         child.receiveShadow = true;
+        child.frustumCulled = false;
       }
     });
+    
+    // Scale up the agents so they are clearly visible on the large city map
+    // The capsule character is ~2 units tall. Scale 3x makes them ~6 units tall,
+    // which keeps them visible in overview while looking more human-sized in freecam.
+    root.scale.set(3, 3, 3);
 
     // Create an independent AnimationMixer for this agent instance
     const mixer = new THREE.AnimationMixer(root);
@@ -323,8 +347,9 @@ export class AgentRenderer {
       runAction.setLoop(THREE.LoopRepeat, Infinity);
     }
 
-    // Play default animation (default: idle)
-    const initialAction = this.defaultAnimation === 'run' ? runAction : idleAction;
+    // Play target animation based on authoritative agent state (PANIC -> run, NORMAL/SAFE -> idle)
+    const targetAnimation = this.getTargetAnimation(agent);
+    const initialAction = targetAnimation === 'run' ? runAction : idleAction;
     if (initialAction) {
       initialAction.play();
     }
@@ -339,7 +364,7 @@ export class AgentRenderer {
         idle: idleAction,
         run: runAction,
       },
-      currentAnimation: this.defaultAnimation,
+      currentAnimation: targetAnimation,
     };
   }
 

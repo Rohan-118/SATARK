@@ -1,5 +1,5 @@
 import { AgentSnapshot, RawAgentDTO } from './agent';
-import { Calamity } from './domain';
+import { Calamity, FloodEnvironment } from './domain';
 
 /**
  * Basic simulation lifecycle status.
@@ -25,6 +25,8 @@ export interface SimulationMetadata {
 export interface WorldSnapshot {
   simulation: SimulationMetadata;
   agents: AgentSnapshot;
+  activeCalamity?: Calamity | null;
+  environment?: FloodEnvironment;
   
   // Future proofing for zone dynamic state (e.g. population counts)
   zoneStates?: Record<string, unknown>; 
@@ -34,11 +36,23 @@ export interface WorldSnapshot {
  * Raw JSON payload DTO expected from the Django/DRF backend snapshot endpoint.
  */
 export interface RawWorldSnapshotDTO {
-  tick?: number;
-  timestamp?: number;
-  status?: string;
-  agents: RawAgentDTO[];
-  zone_states?: Record<string, unknown>;
+  currentTick?: number;
+  simulationTime?: number;
+  activeCalamity?: string | null;
+  entities: RawAgentDTO[];
+  simulation?: {
+    initialized: boolean;
+    paused: boolean;
+    complete: boolean;
+  };
+  environment?: Record<string, unknown>;
+  metrics?: Record<string, unknown>;
+  events?: unknown[];
+  risk?: Record<string, unknown>;
+  recommendations?: Record<string, unknown>;
+  optimization?: Record<string, unknown>;
+  intervention?: Record<string, unknown>;
+  subsystems?: Record<string, unknown>;
 }
 
 /**
