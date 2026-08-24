@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
-import { Agent } from '../../types/domain';
+import { Agent, AgentState } from '../../types/domain';
 import { CityRenderer } from '../CityRenderer';
+import { ZoneRenderer } from '../zones/ZoneRenderer';
+import { getRandomPointInPolygon } from './agentInitialization';
 
 export type AgentAnimationName = 'idle' | 'run';
 
@@ -23,6 +25,9 @@ interface RenderedAgentInstance {
     run: THREE.AnimationAction | null;
   };
   currentAnimation: AgentAnimationName;
+  zoneId: string;
+  targetPosition: THREE.Vector3 | null;
+  state: AgentState;
 }
 
 /**
@@ -41,6 +46,7 @@ export class AgentRenderer {
   private group: THREE.Group;
   private glbUrl: string;
   private defaultAnimation: AgentAnimationName;
+  private zoneRenderer?: ZoneRenderer;
 
   // Master asset state (loaded once)
   private masterScene: THREE.Group | null = null;
@@ -63,6 +69,9 @@ export class AgentRenderer {
   // Unsubscribe function for CityRenderer frame tick
   private unsubscribeTick: (() => void) | null = null;
 
+  // Track if a disaster is currently active to force PANIC visually
+  private hasActiveCalamity: boolean = false;
+
   constructor(renderer: CityRenderer, options?: AgentRendererOptions) {
     this.renderer = renderer;
     this.glbUrl = options?.glbUrl ?? '/agents/capsule_character.glb';
@@ -76,6 +85,10 @@ export class AgentRenderer {
     this.unsubscribeTick = this.renderer.onTick((delta) => {
       this.update(delta);
     });
+  }
+
+  public setZoneRenderer(zoneRenderer: ZoneRenderer): void {
+    this.zoneRenderer = zoneRenderer;
   }
 
   // ────────────────────────────────────────────────────────────
@@ -157,6 +170,47 @@ export class AgentRenderer {
   // Agent State Synchronization
   // ────────────────────────────────────────────────────────────
 
+  public setActiveCalamity(hasCalamity: boolean): void {
+    if (this.hasActiveCalamity !== hasCalamity) {
+      this.hasActiveCalamity = hasCalamity;
+      // Re-evaluate animation and state for all instances
+      for (const instance of this.instances.values()) {
+        this.updateInstanceVisualState(instance);
+      }
+    }
+  }
+
+  private getEffectiveVisualMode(agentState: AgentState): 'NORMAL' | 'PANIC' | 'SAFE' {
+    if (agentState === 'SAFE') return 'SAFE';
+    if (this.hasActiveCalamity) return 'PANIC';
+    if (agentState === 'PANIC') return 'PANIC'; // in case backend triggers it
+    return 'NORMAL';
+  }
+
+  private getTargetAnimationForMode(mode: 'NORMAL' | 'PANIC' | 'SAFE'): AgentAnimationName {
+    if (mode === 'PANIC') return 'run';
+    if (mode === 'NORMAL' || mode === 'SAFE') return 'idle';
+    return this.defaultAnimation;
+  }
+
+  private updateInstanceVisualState(instance: RenderedAgentInstance) {
+    const mode = this.getEffectiveVisualMode(instance.state);
+    
+    // Switch animation
+    const targetAnimation = this.getTargetAnimationForMode(mode);
+    this.setAgentAnimation(instance.id, targetAnimation);
+
+    // If we transition to PANIC from NORMAL without a backend position, assign a panic target
+    if (mode === 'PANIC' && !instance.targetPosition && this.zoneRenderer) {
+      const cells = this.zoneRenderer.getCells();
+      const cell = cells.get(instance.zoneId);
+      if (cell && cell.vertices.length >= 3) {
+         const p = getRandomPointInPolygon(cell.vertices);
+         if (p) instance.targetPosition = new THREE.Vector3(p.x, 0, p.z);
+      }
+    }
+  }
+
   /**
    * Synchronize visual agent instances with authoritative domain agent entities.
    * Handles additions, position updates, and removals.
@@ -180,11 +234,22 @@ export class AgentRenderer {
       const existing = this.instances.get(agent.id);
 
       if (existing) {
-        // Update world position directly from domain coordinates
-        existing.root.position.set(agent.position.x, agent.position.y, agent.position.z);
-        // Couple agent state to animation: PANIC -> run, NORMAL / SAFE -> idle
-        const targetAnimation = this.getTargetAnimation(agent);
-        this.setAgentAnimation(agent.id, targetAnimation);
+        existing.state = agent.state;
+        
+        const mode = this.getEffectiveVisualMode(agent.state);
+
+        if (mode === 'PANIC') {
+          if (agent.state === 'PANIC') {
+             // Authoritative backend route overrides random panic position
+             existing.targetPosition = new THREE.Vector3(agent.position.x, agent.position.y, agent.position.z);
+          }
+        } else if (mode === 'SAFE') {
+          existing.root.position.set(agent.position.x, agent.position.y, agent.position.z);
+          existing.targetPosition = null;
+        }
+
+        // Couple agent state to animation
+        this.updateInstanceVisualState(existing);
       } else {
         // Create new visual instance
         const instance = this.createAgentInstance(agent);
@@ -286,6 +351,76 @@ export class AgentRenderer {
 
     for (const instance of this.instances.values()) {
       instance.mixer.update(delta);
+      const mode = this.getEffectiveVisualMode(instance.state);
+      
+      if (instance.targetPosition) {
+         // Move horizontally towards target
+         const currentPos = new THREE.Vector2(instance.root.position.x, instance.root.position.z);
+         const targetPos = new THREE.Vector2(instance.targetPosition.x, instance.targetPosition.z);
+         const dist = currentPos.distanceTo(targetPos);
+         
+         if (dist < 0.5) {
+            // Reached target
+            if (mode === 'NORMAL' && this.zoneRenderer) {
+               const cells = this.zoneRenderer.getCells();
+               const cell = cells.get(instance.zoneId);
+               if (cell && cell.vertices.length >= 3) {
+                  const p = getRandomPointInPolygon(cell.vertices);
+                  if (p) {
+                     instance.targetPosition.set(p.x, 0, p.z);
+                  }
+               }
+            } else if (mode === 'PANIC' && this.zoneRenderer && instance.state !== 'PANIC') {
+               // If visually panicking but not yet assigned an authoritative backend escape route, 
+               // continue running randomly within zone
+               const cells = this.zoneRenderer.getCells();
+               const cell = cells.get(instance.zoneId);
+               if (cell && cell.vertices.length >= 3) {
+                  const p = getRandomPointInPolygon(cell.vertices);
+                  if (p) {
+                     instance.targetPosition.set(p.x, 0, p.z);
+                  }
+               }
+            } else {
+               instance.targetPosition = null;
+            }
+         } else {
+            // Move towards target
+            const speed = mode === 'PANIC' ? 30.0 : 8.0; // Panic runs much faster
+            const dir = new THREE.Vector2().subVectors(targetPos, currentPos).normalize();
+            
+            // Adjust position
+            instance.root.position.x += dir.x * speed * delta;
+            instance.root.position.z += dir.y * speed * delta;
+            
+            // Smoothly rotate towards target
+            const targetRotation = Math.atan2(dir.x, dir.y);
+            
+            // Interpolate rotation (simple lerp for now, Math.PI logic is tricky with wrap-around, so direct set or simple lerp)
+            // Just direct set for robustness
+            instance.root.rotation.y = targetRotation;
+         }
+      } else if (mode === 'NORMAL' && this.zoneRenderer) {
+         // Assign initial random wandering target if none exists
+         const cells = this.zoneRenderer.getCells();
+         const cell = cells.get(instance.zoneId);
+         if (cell && cell.vertices.length >= 3) {
+            const p = getRandomPointInPolygon(cell.vertices);
+            if (p) {
+               instance.targetPosition = new THREE.Vector3(p.x, 0, p.z);
+            }
+         }
+      } else if (mode === 'PANIC' && this.zoneRenderer && instance.state !== 'PANIC') {
+          // ensure they have a target if they somehow lost it while panicking locally
+          const cells = this.zoneRenderer.getCells();
+          const cell = cells.get(instance.zoneId);
+          if (cell && cell.vertices.length >= 3) {
+             const p = getRandomPointInPolygon(cell.vertices);
+             if (p) {
+                instance.targetPosition = new THREE.Vector3(p.x, 0, p.z);
+             }
+          }
+      }
     }
   }
 
@@ -300,9 +435,8 @@ export class AgentRenderer {
    * PANIC  → run
    */
   private getTargetAnimation(agent: Agent): AgentAnimationName {
-    if (agent.state === 'PANIC') return 'run';
-    if (agent.state === 'NORMAL' || agent.state === 'SAFE') return 'idle';
-    return this.defaultAnimation;
+    const mode = this.getEffectiveVisualMode(agent.state);
+    return this.getTargetAnimationForMode(mode);
   }
 
   /**
@@ -350,13 +484,24 @@ export class AgentRenderer {
     // Play target animation based on authoritative agent state (PANIC -> run, NORMAL/SAFE -> idle)
     const targetAnimation = this.getTargetAnimation(agent);
     const initialAction = targetAnimation === 'run' ? runAction : idleAction;
-    if (initialAction) {
-      initialAction.play();
+    
+    // Default target is null (will be set in update() for NORMAL, or from agent position for PANIC)
+    let targetPosition = null;
+    const mode = this.getEffectiveVisualMode(agent.state);
+    if (mode === 'PANIC') {
+      if (agent.state === 'PANIC') {
+         targetPosition = new THREE.Vector3(agent.position.x, agent.position.y, agent.position.z);
+      } else if (this.zoneRenderer) {
+         const cells = this.zoneRenderer.getCells();
+         const cell = cells.get(agent.zoneId);
+         if (cell && cell.vertices.length >= 3) {
+            const p = getRandomPointInPolygon(cell.vertices);
+            if (p) targetPosition = new THREE.Vector3(p.x, 0, p.z);
+         }
+      }
     }
 
-    this.group.add(root);
-
-    return {
+    const instance: RenderedAgentInstance = {
       id: agent.id,
       root,
       mixer,
@@ -365,7 +510,18 @@ export class AgentRenderer {
         run: runAction,
       },
       currentAnimation: targetAnimation,
+      zoneId: agent.zoneId,
+      targetPosition,
+      state: agent.state,
     };
+
+    if (initialAction) {
+      initialAction.play();
+    }
+
+    this.group.add(root);
+
+    return instance;
   }
 
   /**
