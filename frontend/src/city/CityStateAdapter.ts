@@ -92,13 +92,13 @@ export class CityStateAdapter {
     // Listen to workflow state changes to reset agents when disaster finishes/closes
     this.unsubscribeWorkflow = useStore.subscribe(
       (state: StoreState, prevState: StoreState) => {
-        // If we transition out of a disaster, reset agents to NORMAL
-        const becameIdle = state.workflowState !== 'disaster-active' && state.workflowState !== 'earthquake-result' && state.workflowState !== 'disaster-finished';
-        const wasDisaster = prevState.workflowState === 'disaster-active' || prevState.workflowState === 'earthquake-result' || prevState.workflowState === 'disaster-finished';
+        const floodFinished = prevState.workflowState === 'disaster-active' && state.workflowState === 'disaster-finished';
+        const earthquakeClosed = prevState.workflowState === 'earthquake-result' && state.workflowState === 'idle';
+        const floodClosed = prevState.workflowState === 'disaster-finished' && state.workflowState === 'idle';
         
-        if (becameIdle && wasDisaster) {
-           const agentsArray = Object.values(state.agents).map(a => ({...a, state: 'NORMAL' as const}));
-           useStore.getState().setAgents(agentsArray);
+        if (floodFinished || earthquakeClosed || floodClosed) {
+           this.agentRenderer?.resetAgentsToNormal();
+           useStore.getState().resetAgentsToNormal();
         }
       }
     );

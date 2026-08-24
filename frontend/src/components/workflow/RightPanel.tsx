@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../../store';
-import { applyIntervention } from '../../api/simulationApi';
+import { applyIntervention, resetSimulation } from '../../api/simulationApi';
 import './RightPanel.css';
 
 export const RightPanel: React.FC = () => {
@@ -13,7 +13,22 @@ export const RightPanel: React.FC = () => {
     return null;
   }
 
-  const handleCloseDisaster = () => {
+  const handleCloseDisaster = async () => {
+    // If we're closing an earthquake, reset the simulation now
+    if (workflowState === 'earthquake-result') {
+      try {
+        const resetSnapshot = await resetSimulation();
+        resetSnapshot.agents = {
+           agents: Object.values(useStore.getState().agents),
+           timestamp: Date.now(),
+           tick: 0
+        };
+        applyWorldSnapshot(resetSnapshot);
+      } catch (err) {
+        console.error('Failed to reset earthquake simulation:', err);
+      }
+    }
+
     // Reset to idle state
     setWorkflowState('idle');
     setSelectedZoneId(null);
