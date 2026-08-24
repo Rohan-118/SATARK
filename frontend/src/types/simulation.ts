@@ -16,6 +16,10 @@ export interface SimulationMetadata {
   timestamp: number;
   /** Simulation status if provided */
   status?: SimulationStatus;
+  /** Whether the simulation has reached its duration */
+  complete?: boolean;
+  /** Configured duration of the simulation in simulation seconds */
+  duration?: number;
 }
 
 /**
@@ -44,6 +48,7 @@ export interface RawWorldSnapshotDTO {
     initialized: boolean;
     paused: boolean;
     complete: boolean;
+    duration?: number;
   };
   environment?: Record<string, unknown>;
   metrics?: Record<string, unknown>;

@@ -6,20 +6,24 @@ import { TimelineBar } from '../components/layout/TimelineBar';
 import { LeftPanel } from '../components/workflow/LeftPanel';
 import { RightPanel } from '../components/workflow/RightPanel';
 import { CompactControls } from '../components/workflow/CompactControls';
+import { SimulationLoopManager } from '../components/workflow/SimulationLoopManager';
 
 export const CommandCenter: React.FC = () => {
   return (
-    <CommandCenterLayout
-      header={<CommandHeader />}
-      leftSidebar={<LeftPanel />}
-      rightSidebar={<RightPanel />}
-      main={
-        <>
-          <CityScene />
-          <CompactControls />
-        </>
-      }
-      footer={<TimelineBar />}
-    />
+    <>
+      <SimulationLoopManager />
+      <CommandCenterLayout
+        header={<CommandHeader />}
+        leftSidebar={<LeftPanel />}
+        rightSidebar={<RightPanel />}
+        main={
+          <>
+            <CityScene />
+            <CompactControls />
+          </>
+        }
+        footer={<TimelineBar />}
+      />
+    </>
   );
 };

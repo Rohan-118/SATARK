@@ -33,10 +33,14 @@ export function validateWorldSnapshot(raw: unknown): WorldSnapshot | null {
   const timestamp = typeof dto.simulationTime === 'number' && Number.isFinite(dto.simulationTime) ? dto.simulationTime : Date.now();
   
   let status: SimulationStatus | undefined = undefined;
+  let complete: boolean | undefined = undefined;
+  let duration: number | undefined = undefined;
   if (dto.simulation) {
     if (dto.simulation.paused) status = 'paused';
     else if (dto.simulation.initialized) status = 'running';
     else status = 'idle';
+    complete = dto.simulation.complete;
+    duration = dto.simulation.duration;
   }
 
   // 3. Extract Zone States if any
@@ -79,7 +83,9 @@ export function validateWorldSnapshot(raw: unknown): WorldSnapshot | null {
     simulation: {
       tick,
       timestamp,
-      ...(status ? { status } : {})
+      ...(status ? { status } : {}),
+      ...(complete !== undefined ? { complete } : {}),
+      ...(duration !== undefined ? { duration } : {})
     },
     agents: agentSnapshot,
     ...(activeCalamity ? { activeCalamity } : {}),

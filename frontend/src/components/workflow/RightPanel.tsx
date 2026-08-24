@@ -4,8 +4,8 @@ import { applyIntervention } from '../../api/simulationApi';
 import './RightPanel.css';
 
 export const RightPanel: React.FC = () => {
-  const { workflowState, setWorkflowState, setSelectedZoneId, environment, applyWorldSnapshot } = useStore();
-  const [selectedInterventionId, setSelectedInterventionId] = useState<string | null>(null);
+  const { workflowState, setWorkflowState, setSelectedZoneId, environment, finalEnvironment, applyWorldSnapshot, isSimulationStepping, setIsSimulationMutating, setFinalEnvironment } = useStore();
+  const [selectedInterventionIds, setSelectedInterventionIds] = useState<string[]>([]);
   const [applying, setApplying] = useState(false);
 
   // Right Panel is only visible if a disaster is active, finished, or earthquake-result
@@ -17,7 +17,10 @@ export const RightPanel: React.FC = () => {
     // Reset to idle state
     setWorkflowState('idle');
     setSelectedZoneId(null);
+    setFinalEnvironment(undefined);
   };
+
+  const displayEnv = workflowState === 'disaster-finished' ? finalEnvironment : environment;
 
   return (
     <div className="right-panel">
@@ -72,18 +75,24 @@ export const RightPanel: React.FC = () => {
               <h3>RECOMMENDED INTERVENTIONS</h3>
               {environment?.decision?.recommendations && environment.decision.recommendations.length > 0 ? (
                 <div className="intervention-list">
-                  {environment.decision.recommendations.map((rec: any) => (
-                    <div className="intervention-item" key={rec.intervention?.intervention_id}>
-                      <input 
-                        type="checkbox" 
-                        checked={selectedInterventionId === rec.intervention?.intervention_id}
-                        onChange={() => setSelectedInterventionId(
-                          selectedInterventionId === rec.intervention?.intervention_id ? null : rec.intervention?.intervention_id
-                        )}
-                      />
-                      <label>{rec.intervention?.name || rec.intervention?.intervention_id?.replace(/_/g, ' ').toUpperCase()}</label>
-                    </div>
-                  ))}
+                  {environment.decision.recommendations.map((rec: any) => {
+                    const id = rec.intervention?.intervention_id;
+                    if (!id) return null;
+                    return (
+                      <div className="intervention-item" key={id}>
+                        <input 
+                          type="checkbox" 
+                          checked={selectedInterventionIds.includes(id)}
+                          onChange={() => {
+                            setSelectedInterventionIds(prev => 
+                              prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+                            );
+                          }}
+                        />
+                        <label>{rec.intervention?.name || id.replace(/_/g, ' ').toUpperCase()}</label>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="intervention-list">
@@ -93,19 +102,32 @@ export const RightPanel: React.FC = () => {
               
               <button 
                 className="apply-btn" 
-                disabled={!selectedInterventionId || applying}
+                disabled={selectedInterventionIds.length === 0 || applying || isSimulationStepping}
                 onClick={async () => {
-                  if (!selectedInterventionId) return;
+                  if (selectedInterventionIds.length === 0) return;
+                  
+                  // Wait for any active step to finish
+                  if (useStore.getState().isSimulationStepping) {
+                      return;
+                  }
+                  
                   setApplying(true);
+                  setIsSimulationMutating(true);
                   try {
-                    const updatedSnapshot = await applyIntervention(selectedInterventionId);
-                    applyWorldSnapshot(updatedSnapshot);
-                    setSelectedInterventionId(null);
+                    let updatedSnapshot = null;
+                    for (const id of selectedInterventionIds) {
+                        updatedSnapshot = await applyIntervention(id);
+                    }
+                    if (updatedSnapshot) {
+                        applyWorldSnapshot(updatedSnapshot);
+                    }
+                    setSelectedInterventionIds([]);
                   } catch (e) {
                     console.error("Failed to apply intervention", e);
                     alert("Failed to apply intervention");
                   } finally {
                     setApplying(false);
+                    setIsSimulationMutating(false);
                   }
                 }}
               >
@@ -128,19 +150,19 @@ export const RightPanel: React.FC = () => {
               <div className="summary-stats">
                 <div className="stat-row">
                   <span className="stat-label">FINAL RISK</span>
-                  <span className="stat-value">NO DATA</span>
+                  <span className="stat-value">{displayEnv?.risk?.assessment?.composite_risk_score ?? 'NO DATA'}</span>
                 </div>
                 <div className="stat-row">
-                  <span className="stat-label">CASUALTIES</span>
-                  <span className="stat-value">NO DATA</span>
-                </div>
-                <div className="stat-row">
-                  <span className="stat-label">PROPERTY DAMAGE</span>
-                  <span className="stat-value">NO DATA</span>
+                  <span className="stat-label">AFFECTED</span>
+                  <span className="stat-value">
+                    {displayEnv?.subsystems?.casualties
+                      ? ((displayEnv.subsystems.casualties.total_fatalities ?? 0) + (displayEnv.subsystems.casualties.total_injuries ?? 0)).toLocaleString()
+                      : 'NO DATA'}
+                  </span>
                 </div>
                 <div className="stat-row">
                   <span className="stat-label">INFRASTRUCTURE DAMAGE</span>
-                  <span className="stat-value">NO DATA</span>
+                  <span className="stat-value">{displayEnv?.risk?.assessment?.breakdown?.infrastructure !== undefined ? `${displayEnv.risk.assessment.breakdown.infrastructure}%` : 'NO DATA'}</span>
                 </div>
               </div>
             </div>

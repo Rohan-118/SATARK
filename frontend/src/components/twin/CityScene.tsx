@@ -10,7 +10,6 @@ import { InfrastructureRenderer } from '../../city/infrastructure/Infrastructure
 import { fetchZones, fetchSafeZones, fetchWorldBounds } from '../../api/worldApi';
 import { useStore } from '../../store';
 import { WorldBounds } from '../../city/zones/voronoi';
-import { DevSimulationControls } from '../simulation/DevSimulationControls';
 import './CityScene.css';
 
 export const CityScene: React.FC = () => {
@@ -174,7 +173,6 @@ export const CityScene: React.FC = () => {
           Loading city.glb... {progress.toFixed(0)}%
         </div>
       )}
-      {!loading && <DevSimulationControls />}
     </div>
   );
 };

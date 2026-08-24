@@ -55,6 +55,9 @@ def _state_payload(
         "complete": (
             engine.is_complete
         ),
+        "duration": (
+            engine.scenario.duration
+        ),
     }
 
     state["risk"] = (
