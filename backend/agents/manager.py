@@ -227,9 +227,12 @@ class AgentManager:
                 if agent_count == 1:
                     dx, dz = 0.0, 0.0
                 else:
-                    # Deterministic golden-spiral dispersion within the zone (15-60 units radius)
-                    radius = 15.0 + 45.0 * sqrt((index + 0.5) / agent_count)
-                    angle = index * 2.399963229728653  # Golden angle (radians)
+                    import random
+                    # Random dispersion within the zone (up to 45 units radius)
+                    # Use a deterministic seed to keep the backend predictable across runs
+                    rng = random.Random(f"{zone_id}_{index}")
+                    radius = rng.uniform(0.0, 45.0)
+                    angle = rng.uniform(0.0, 2.0 * pi)
                     dx = radius * cos(angle)
                     dz = radius * sin(angle)
 

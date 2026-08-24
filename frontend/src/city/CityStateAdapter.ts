@@ -4,6 +4,7 @@ import { AgentRenderer } from './agents/AgentRenderer';
 import { CameraController } from './camera/CameraController';
 import { DisasterRenderer } from './calamities/DisasterRenderer';
 import { InfrastructureRenderer } from './infrastructure/InfrastructureRenderer';
+import { generateInitialAgents } from './agents/agentInitialization';
 
 export class CityStateAdapter {
   private zoneRenderer: ZoneRenderer;
@@ -16,8 +17,10 @@ export class CityStateAdapter {
   private unsubscribeUi: () => void;
   private unsubscribeAgents?: () => void;
   private unsubscribeSimulation?: () => void;
+  private unsubscribeWorkflow?: () => void;
   
   private lastSelectedZoneId: string | null = null;
+  private hasInitializedAgents = false;
 
   constructor(
     zoneRenderer: ZoneRenderer,
@@ -31,6 +34,10 @@ export class CityStateAdapter {
     this.cameraController = cameraController;
     this.disasterRenderer = disasterRenderer;
     this.infrastructureRenderer = infrastructureRenderer;
+    
+    if (this.agentRenderer) {
+       this.agentRenderer.setZoneRenderer(this.zoneRenderer);
+    }
 
     // Listen to world state changes
     this.unsubscribeWorld = useStore.subscribe(
@@ -40,6 +47,7 @@ export class CityStateAdapter {
           // Future: update infrastructure from world state
           // this.infrastructureRenderer.updateInfrastructure(state.infrastructure);
         }
+        this.initializeFrontendAgents(state);
       }
     );
 
@@ -70,16 +78,30 @@ export class CityStateAdapter {
     }
     
     // Listen to Simulation state changes for calamities
-    if (this.disasterRenderer) {
+    if (this.disasterRenderer || this.agentRenderer) {
       this.unsubscribeSimulation = useStore.subscribe(
         (state: StoreState) => {
           // We call updateCalamity on every state change when disasterRenderer is present
           // so it can receive dynamic environment updates (like flood water levels)
-
           this.disasterRenderer?.updateCalamity(state.activeCalamity, state.environment);
+          this.agentRenderer?.setActiveCalamity(!!state.activeCalamity);
         }
       );
     }
+
+    // Listen to workflow state changes to reset agents when disaster finishes/closes
+    this.unsubscribeWorkflow = useStore.subscribe(
+      (state: StoreState, prevState: StoreState) => {
+        // If we transition out of a disaster, reset agents to NORMAL
+        const becameIdle = state.workflowState !== 'disaster-active' && state.workflowState !== 'earthquake-result' && state.workflowState !== 'disaster-finished';
+        const wasDisaster = prevState.workflowState === 'disaster-active' || prevState.workflowState === 'earthquake-result' || prevState.workflowState === 'disaster-finished';
+        
+        if (becameIdle && wasDisaster) {
+           const agentsArray = Object.values(state.agents).map(a => ({...a, state: 'NORMAL' as const}));
+           useStore.getState().setAgents(agentsArray);
+        }
+      }
+    );
 
     // Initial sync
     const state = useStore.getState();
@@ -91,6 +113,28 @@ export class CityStateAdapter {
     if (this.disasterRenderer) {
       this.disasterRenderer.updateCalamity(state.activeCalamity, state.environment);
     }
+    
+    this.initializeFrontendAgents(state);
+  }
+
+  private async initializeFrontendAgents(state: StoreState) {
+    if (this.hasInitializedAgents) return;
+    if (state.zones.length === 0) return;
+    
+    // Only initialize if agents don't exist yet
+    if (Object.keys(state.agents).length > 0) return;
+    
+    // Generate agents based on the voronoi cells
+    const cells = this.zoneRenderer.getCells();
+    if (cells.size === 0) return; // Wait until cells are computed
+    
+    this.hasInitializedAgents = true;
+    const initialAgents = await generateInitialAgents(state.zones, cells);
+    
+    // Check again in case state changed while fetching
+    if (Object.keys(useStore.getState().agents).length === 0 && initialAgents.length > 0) {
+       useStore.getState().setAgents(initialAgents);
+    }
   }
 
   public dispose() {
@@ -101,6 +145,9 @@ export class CityStateAdapter {
     }
     if (this.unsubscribeSimulation) {
       this.unsubscribeSimulation();
+    }
+    if (this.unsubscribeWorkflow) {
+      this.unsubscribeWorkflow();
     }
   }
 }
