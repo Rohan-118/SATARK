@@ -75,7 +75,8 @@ export class CityStateAdapter {
         (state: StoreState) => {
           // We call updateCalamity on every state change when disasterRenderer is present
           // so it can receive dynamic environment updates (like flood water levels)
-          console.log('[DEBUG FLOOD] CityStateAdapter calling disasterRenderer.updateCalamity', { activeCalamity: state.activeCalamity, environment: state.environment });
+          console.log('[TRACE 4] CityStateAdapter updateCalamity activeCalamity:', state.activeCalamity);
+          console.log('[TRACE 4] CityStateAdapter updateCalamity flood_water_levels:', state.environment?.flood_water_levels);
           this.disasterRenderer?.updateCalamity(state.activeCalamity, state.environment);
         }
       );
