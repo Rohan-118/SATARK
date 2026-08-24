@@ -35,6 +35,11 @@ export interface AgentSlice {
    * Reset the agent store to empty state.
    */
   clearAgents: () => void;
+
+  /**
+   * Reset all agents to NORMAL state (used when disasters end).
+   */
+  resetAgentsToNormal: () => void;
 }
 
 export const createAgentSlice: StateCreator<AgentSlice> = (set, get) => ({
@@ -94,6 +99,16 @@ export const createAgentSlice: StateCreator<AgentSlice> = (set, get) => ({
       agentIds: [],
       lastUpdated: null,
       snapshotTick: null,
+    });
+  },
+
+  resetAgentsToNormal: () => {
+    set((state) => {
+      const newAgents: Record<string, Agent> = {};
+      for (const [id, agent] of Object.entries(state.agents)) {
+        newAgents[id] = { ...agent, state: 'NORMAL' };
+      }
+      return { agents: newAgents };
     });
   },
 });

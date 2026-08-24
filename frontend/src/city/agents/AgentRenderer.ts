@@ -180,6 +180,38 @@ export class AgentRenderer {
     }
   }
 
+  public resetAgentsToNormal(): void {
+    this.hasActiveCalamity = false;
+    for (const instance of this.instances.values()) {
+      instance.state = 'NORMAL';
+      
+      if (this.zoneRenderer) {
+         const cells = this.zoneRenderer.getCells();
+         const cell = cells.get(instance.zoneId);
+         if (cell && cell.vertices.length >= 3) {
+            // Restore default population distribution by returning them to their home zone
+            const p = getRandomPointInPolygon(cell.vertices);
+            if (p) {
+               instance.root.position.set(p.x, 0, p.z);
+            }
+            // Clear evacuation target and pick new normal target
+            const targetP = getRandomPointInPolygon(cell.vertices);
+            if (targetP) {
+               instance.targetPosition = new THREE.Vector3(targetP.x, 0, targetP.z);
+            } else {
+               instance.targetPosition = null;
+            }
+         } else {
+            instance.targetPosition = null;
+         }
+      } else {
+         instance.targetPosition = null;
+      }
+      
+      this.updateInstanceVisualState(instance);
+    }
+  }
+
   private getEffectiveVisualMode(agentState: AgentState): 'NORMAL' | 'PANIC' | 'SAFE' {
     if (agentState === 'SAFE') return 'SAFE';
     if (this.hasActiveCalamity) return 'PANIC';

@@ -45,6 +45,14 @@ export const SimulationLoopManager: React.FC = () => {
           useStore.getState().setFinalEnvironment(snapshot.environment);
           
           const resetSnapshot = await resetSimulation();
+          
+          // Preserve existing agents instead of letting the backend reset wipe them out
+          resetSnapshot.agents = {
+             agents: Object.values(useStore.getState().agents),
+             timestamp: Date.now(),
+             tick: 0
+          };
+          
           useStore.getState().applyWorldSnapshot(resetSnapshot);
           
           useStore.getState().setWorkflowState('disaster-finished');
