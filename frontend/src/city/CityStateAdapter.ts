@@ -89,18 +89,29 @@ export class CityStateAdapter {
       );
     }
 
-    // Listen to workflow state changes to reset agents when disaster finishes/closes
+    // Listen to workflow state changes to reset agents and weather when disaster finishes/closes
     this.unsubscribeWorkflow = useStore.subscribe(
       (state: StoreState, prevState: StoreState) => {
+        const floodStarted = prevState.workflowState !== 'disaster-active' && state.workflowState === 'disaster-active';
         const floodFinished = prevState.workflowState === 'disaster-active' && state.workflowState === 'disaster-finished';
         const floodClosed = prevState.workflowState === 'disaster-finished' && state.workflowState === 'idle';
         
-        if (floodFinished || floodClosed) {
+        if (floodStarted) {
+           this.disasterRenderer?.updateCalamity(state.activeCalamity, state.environment);
+           this.agentRenderer?.setActiveCalamity(true);
+        } else if (floodFinished) {
+           this.disasterRenderer?.onSimulationEnd();
+           this.agentRenderer?.resetAgentsToNormal();
+           useStore.getState().resetAgentsToNormal();
+        } else if (floodClosed) {
+           this.disasterRenderer?.clear();
            this.agentRenderer?.resetAgentsToNormal();
            useStore.getState().resetAgentsToNormal();
         }
       }
     );
+
+
 
     // Initial sync
     const state = useStore.getState();

@@ -50,20 +50,24 @@ export const RecommendationsSection: React.FC = () => {
   };
 
   return (
-    <div className="interventions-section">
-      <h3>RECOMMENDED INTERVENTIONS</h3>
+    <div className="telemetry-card interventions-telemetry-card">
+      <div className="telemetry-card-title">
+        <span className="card-badge">AI DECISION MATRIX</span>
+        <h3>RECOMMENDED INTERVENTIONS</h3>
+      </div>
       <InterventionList
         recommendations={recommendations}
         selectedInterventionIds={selectedInterventionIds}
         onToggleIntervention={handleToggle}
       />
       <button
-        className="apply-btn"
+        className="apply-btn cyber-apply-btn"
         disabled={selectedInterventionIds.length === 0 || applying || isSimulationStepping}
         onClick={handleApply}
       >
-        {applying ? 'APPLYING...' : 'APPLY INTERVENTION'}
+        {applying ? 'EXECUTING COUNTER-MEASURE...' : `AUTHORIZE INTERVENTIONS (${selectedInterventionIds.length})`}
       </button>
     </div>
   );
 };
+

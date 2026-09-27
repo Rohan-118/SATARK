@@ -239,6 +239,13 @@ export class CityRenderer {
     private roadLineMaterial!: THREE.MeshBasicMaterial;
     
     private directionalLight!: THREE.DirectionalLight;
+    private hemisphereLight!: THREE.HemisphereLight;
+    private baseDirectionalIntensity = 2.35;
+    private baseHemisphereIntensity = 0.82;
+    private baseFogColor = new THREE.Color(0xa8d7ef);
+    private stormFogColor = new THREE.Color(0x0f172a);
+    private lightningSkyColor = new THREE.Color(0x7ea9d4);
+    private baseFogDensity = 0.00038;
 
     // ── Terrain footprint and meshes (extracted once after GLB loads) ──
     private terrainMeshes: THREE.Mesh[] = [];
@@ -623,9 +630,10 @@ export class CityRenderer {
         this.composer.addPass(outputPass);
 
         // Lighting
-        this.scene.add(new THREE.HemisphereLight(0x9bbcff, 0x162016, 0.82));
+        this.hemisphereLight = new THREE.HemisphereLight(0x9bbcff, 0x162016, this.baseHemisphereIntensity);
+        this.scene.add(this.hemisphereLight);
         
-        this.directionalLight = new THREE.DirectionalLight(0xffffff, 2.35);
+        this.directionalLight = new THREE.DirectionalLight(0xffffff, this.baseDirectionalIntensity);
         this.directionalLight.position.set(500, 1200, 350);
         this.directionalLight.castShadow = true;
         this.directionalLight.shadow.mapSize.set(2048, 2048);
@@ -636,6 +644,67 @@ export class CityRenderer {
         this.animate = this.animate.bind(this);
         this.animate();
     }
+
+    /**
+     * Smoothly adjusts atmospheric storm lighting and fog.
+     * stormRatio: 0 = clear sunny daylight, 1 = maximum overcast storm.
+     */
+    public setStormAtmosphere(stormRatio: number): void {
+        const t = Math.max(0, Math.min(1, stormRatio));
+        if (this.directionalLight) {
+            this.directionalLight.intensity = THREE.MathUtils.lerp(this.baseDirectionalIntensity, 1.15, t);
+        }
+        if (this.hemisphereLight) {
+            this.hemisphereLight.intensity = THREE.MathUtils.lerp(this.baseHemisphereIntensity, 0.45, t);
+        }
+        if (this.scene.fog && this.scene.fog instanceof THREE.FogExp2) {
+            this.scene.fog.color.lerpColors(this.baseFogColor, this.stormFogColor, t);
+            const targetDensity = this.baseFogDensity * (1.0 + t * 0.75);
+            this.scene.fog.density = THREE.MathUtils.lerp(this.scene.fog.density, targetDensity, 0.1);
+        }
+        if (t > 0.4) {
+            this.scene.background = this.stormFogColor;
+        } else {
+            this.scene.background = this.skyTexture;
+        }
+    }
+
+    /**
+     * Momentarily flashes lighting and sky fog for lightning discharges.
+     * flashIntensity: 0 to 1 multiplier for flash boost.
+     */
+    public flashLightning(flashIntensity: number): void {
+        if (flashIntensity <= 0.01) return;
+        if (this.directionalLight) {
+            this.directionalLight.intensity = this.baseDirectionalIntensity * (1.0 + flashIntensity * 2.8);
+        }
+        if (this.hemisphereLight) {
+            this.hemisphereLight.intensity = this.baseHemisphereIntensity * (1.0 + flashIntensity * 3.4);
+        }
+        if (this.scene.fog && this.scene.fog instanceof THREE.FogExp2) {
+            this.scene.fog.color.lerpColors(this.stormFogColor, this.lightningSkyColor, Math.min(1.0, flashIntensity * 1.1));
+        }
+        if (flashIntensity > 0.45) {
+            this.scene.background = this.lightningSkyColor;
+        } else {
+            this.scene.background = this.stormFogColor;
+        }
+    }
+
+    /**
+     * Resets atmosphere to baseline daylight conditions.
+     */
+    public resetAtmosphere(): void {
+        if (this.directionalLight) this.directionalLight.intensity = this.baseDirectionalIntensity;
+        if (this.hemisphereLight) this.hemisphereLight.intensity = this.baseHemisphereIntensity;
+        if (this.scene.fog && this.scene.fog instanceof THREE.FogExp2) {
+            this.scene.fog.color.copy(this.baseFogColor);
+            this.scene.fog.density = this.baseFogDensity;
+        }
+        this.scene.background = this.skyTexture;
+    }
+
+
 
     /**
      * Recomputes and applies the OrthographicCamera frustum based on the actual
