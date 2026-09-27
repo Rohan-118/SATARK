@@ -245,6 +245,6 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 
 ## Contact
 
-- **Project Maintainer**: Rohan ([@Rohan-118](https://github.com/Rohan-118))
+- **Project Maintainer**: SN Omm Tripathy ([@Rohan-118](https://github.com/Rohan-118))
 - **Repository**: [https://github.com/Rohan-118/SATARK](https://github.com/Rohan-118/SATARK)
 - **Issue Tracker**: [https://github.com/Rohan-118/SATARK/issues](https://github.com/Rohan-118/SATARK/issues)
