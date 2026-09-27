@@ -219,7 +219,6 @@ npm --prefix frontend run lint
 - [x] Counterfactual intervention optimizer with side-by-side metric diffs.
 - [x] 3D holographic digital twin with animated citizens and flood height shaders.
 - [x] 2D GIS map with georeferenced municipal sectors and dark basemap.
-- [ ] Earthquake calamity scenario expansion.
 - [ ] Real-time IoT sensor telemetry ingestion (MQTT / WebSockets).
 - [ ] Multi-city expansion with automated OpenStreetMap building footprint ingestion.
 
